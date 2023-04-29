@@ -3272,7 +3272,7 @@ HRESULT m_IDirectDrawSurfaceX::CreateD3d9Surface()
 		// Create texture
 		else if (IsTexture() || !IsDirect3DSurface)
 		{
-			if (FAILED(((*d3d9Device)->CreateTexture(Width, Height, 1, 0, TextureFormat, D3DPOOL_SYSTEMMEM, &surfaceTexture, nullptr))))
+			if (FAILED(((*d3d9Device)->CreateTexture(Width, Height, 1, 0, TextureFormat, Config.Dd7to9 ? D3DPOOL_DEFAULT : D3DPOOL_SYSTEMMEM, &surfaceTexture, nullptr))))
 			{
 				LOG_LIMIT(100, __FUNCTION__ << " Error: failed to create surface texture size: " << Width << "x" << Height << " Format: " << surfaceFormat);
 				hr = DDERR_GENERIC;
