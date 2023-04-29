@@ -2671,9 +2671,9 @@ HRESULT m_IDirectDrawX::CreateD3D9Device()
 		// Backbuffer
 		presParams.BackBufferCount = 1;
 		// Auto stencel
-		presParams.EnableAutoDepthStencil = FALSE;
+		presParams.EnableAutoDepthStencil = Config.DdrawAutoStencilFormat > 0 ? TRUE : FALSE;
 		// Auto stencel format
-		presParams.AutoDepthStencilFormat = D3DFMT_UNKNOWN;
+		presParams.AutoDepthStencilFormat = (D3DFORMAT) Config.DdrawAutoStencilFormat;
 		// Interval level
 		presParams.PresentationInterval = D3DPRESENT_INTERVAL_IMMEDIATE;
 		// Anti-aliasing

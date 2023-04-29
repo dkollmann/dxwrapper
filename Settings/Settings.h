@@ -40,6 +40,7 @@
 	visit(DdrawOverrideWidth) \
 	visit(DdrawOverrideHeight) \
 	visit(DdrawOverrideRefreshRate) \
+	visit(DdrawAutoStencilFormat) \
 	visit(DdrawResolutionHack) \
 	visit(DdrawUseDirect3D9Ex) \
 	visit(DdrawUseNativeResolution) \
@@ -215,6 +216,7 @@ struct CONFIG
 	DWORD DdrawOverrideWidth = 0;				// Force Direct3d9 to use this width when using Dd7to9
 	DWORD DdrawOverrideHeight = 0;				// Force Direct3d9 to use this height when using Dd7to9
 	DWORD DdrawOverrideRefreshRate = 0;			// Force Direct3d9 to use this refresh rate when using Dd7to9
+	DWORD DdrawAutoStencilFormat = 0;			// Force Direct3d9 to automatically create stencil and depth buffers when using Dd7to9
 	DWORD DdrawHookSystem32 = 0;				// Hooks the ddraw.dll file in the Windows System32 folder
 	DWORD D3d8HookSystem32 = 0;					// Hooks the d3d8.dll file in the Windows System32 folder
 	DWORD D3d9HookSystem32 = 0;					// Hooks the d3d9.dll file in the Windows System32 folder
