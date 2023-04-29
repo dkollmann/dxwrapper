@@ -104,6 +104,7 @@ DWORD monitorHeight;
 // Direct3D9 flags
 bool IsInScene;
 bool EnableWaitVsync;
+bool DetectedRTXRemix = false;
 
 // Direct3D9 Objects
 LPDIRECT3D9 d3d9Object;
@@ -2227,6 +2228,11 @@ void m_IDirectDrawX::InitDdraw(DWORD DirectXVersion)
 		IsInScene = false;
 		EnableWaitVsync = false;
 
+		// Detect RTX Remix
+		std::string cmd = GetCommandLine();
+		Logging::Log() << "Command-line: " << cmd.c_str();
+		DetectedRTXRemix = cmd.find("\\remix\\") != std::string::npos;
+
 		// Direct3D9 Objects
 		d3d9Object = nullptr;
 		d3d9ObjectEx = nullptr;
@@ -2609,6 +2615,11 @@ HRESULT m_IDirectDrawX::CreateD3D9Device()
 	if (FAILED(CheckInterface(__FUNCTION__, false)))
 	{
 		return DDERR_GENERIC;
+	}
+
+	if(DetectedRTXRemix)
+	{
+		Sleep(500);  // give server time to breathe, otherwise we end up in a dead lock during CreateDevice
 	}
 
 	SetCriticalSection();
