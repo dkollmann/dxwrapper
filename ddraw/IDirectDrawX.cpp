@@ -2616,11 +2616,6 @@ HRESULT m_IDirectDrawX::CreateD3D9Device()
 		return DDERR_GENERIC;
 	}
 
-	if(DetectedRTXRemix)
-	{
-		Sleep(500);  // give server time to breathe, otherwise we end up in a dead lock during CreateDevice
-	}
-
 	SetCriticalSection();
 
 	HRESULT hr = DD_OK;
@@ -2632,6 +2627,12 @@ HRESULT m_IDirectDrawX::CreateD3D9Device()
 
 		// Get hwnd
 		HWND hWnd = GetHwnd();
+
+		// get current window if none is set
+		if(hWnd == nullptr)
+		{
+			hWnd = GetActiveWindow();
+		}
 
 		// Store new focus window
 		hFocusWindow = hWnd;
