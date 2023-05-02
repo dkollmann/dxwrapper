@@ -2,6 +2,8 @@
 
 #include "IDirectDrawX.h"
 
+namespace DirectX { struct XMMATRIX; }
+
 class m_IDirect3DDeviceX : public IUnknown, public AddressLookupTableDdrawObject
 {
 private:
@@ -185,4 +187,6 @@ public:
 	void CopyScaleVertex(LPVOID lpVertices, std::vector<D3DTLVERTEX> &pVert, DWORD dwVertexCount);
 	UINT GetNumberOfPrimitives(D3DPRIMITIVETYPE dptPrimitiveType, DWORD dwVertexCount);
 	UINT GetVertexStride(DWORD dwVertexTypeDesc);
+
+	HRESULT GetWorldViewProjectionMatrix(DirectX::XMMATRIX& lpXMMatrix, bool inverse = false) const;
 };

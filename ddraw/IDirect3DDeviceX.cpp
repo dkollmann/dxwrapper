@@ -16,6 +16,7 @@
 
 #include "ddraw.h"
 #include <d3dhal.h>
+#include <DirectXMath.h>
 
 extern float ScaleDDWidthRatio;
 extern float ScaleDDHeightRatio;
@@ -2123,7 +2124,7 @@ HRESULT m_IDirect3DDeviceX::DrawPrimitiveVB(D3DPRIMITIVETYPE d3dptPrimitiveType,
 
 HRESULT m_IDirect3DDeviceX::DrawIndexedPrimitive(D3DPRIMITIVETYPE dptPrimitiveType, DWORD dwVertexTypeDesc, LPVOID lpVertices, DWORD dwVertexCount, LPWORD lpIndices, DWORD dwIndexCount, DWORD dwFlags, DWORD DirectXVersion)
 {
-	Logging::LogDebug() << __FUNCTION__ << " (" << this << ")";
+	Logging::LogDebug() << __FUNCTION__ << " (" << this << ") " << dwVertexTypeDesc;
 
 	if (Config.Dd7to9)
 	{
@@ -2164,11 +2165,48 @@ HRESULT m_IDirect3DDeviceX::DrawIndexedPrimitive(D3DPRIMITIVETYPE dptPrimitiveTy
 		}
 		else
 		{
+			const UINT stride = GetVertexStride(dwVertexTypeDesc);
+
+			// Handle PositionT
+			if((dwVertexTypeDesc & D3DFVF_XYZRHW) != 0)
+			{
+				// revert the vertives to world space
+				DirectX::XMMATRIX wvpInverseMatrix;
+				hr = GetWorldViewProjectionMatrix(wvpInverseMatrix, true);
+
+				if(SUCCEEDED(hr))
+				{
+					UINT8 *vertex = (UINT8*)lpVertices;
+
+					for (UINT x = 0; x < dwVertexCount; x++)
+					{
+						float *pos = (float*) vertex;
+
+						DirectX::XMVECTOR vec = DirectX::XMVectorSet(pos[0], pos[1], pos[2], pos[3]);
+
+						/*DirectX::XMVECTOR w = DirectX::XMVectorSplatW(vec);
+						DirectX::XMVECTOR vecnorm = DirectX::XMVectorDivide(vec, w);*/
+
+						DirectX::XMVECTOR vecnorm = DirectX::XMVector3TransformCoord(vec, wvpInverseMatrix);
+
+						pos[0] = DirectX::XMVectorGetX(vecnorm);
+						pos[1] = DirectX::XMVectorGetY(vecnorm);
+						pos[2] = DirectX::XMVectorGetZ(vecnorm);
+						pos[3] = 1.0f;  //DirectX::XMVectorGetW(vecnorm);*/
+
+						vertex += stride;
+					}
+
+					// update the FVF
+					dwVertexTypeDesc = (dwVertexTypeDesc & ~D3DFVF_XYZRHW) | D3DFVF_XYZW;
+				}
+			}
+
 			// Set fixed function vertex type
 			(*d3d9Device)->SetFVF(dwVertexTypeDesc);
 
 			// Draw indexed primitive UP
-			hr = (*d3d9Device)->DrawIndexedPrimitiveUP(dptPrimitiveType, 0, dwVertexCount, GetNumberOfPrimitives(dptPrimitiveType, dwIndexCount), lpIndices, D3DFMT_INDEX16, lpVertices, GetVertexStride(dwVertexTypeDesc));
+			hr = (*d3d9Device)->DrawIndexedPrimitiveUP(dptPrimitiveType, 0, dwVertexCount, GetNumberOfPrimitives(dptPrimitiveType, dwIndexCount), lpIndices, D3DFMT_INDEX16, lpVertices, stride);
 		}
 
 		// Handle dwFlags
@@ -2660,3 +2698,43 @@ UINT m_IDirect3DDeviceX::GetVertexStride(DWORD dwVertexTypeDesc)
 		(((dwVertexTypeDesc & D3DFVF_TEXCOUNT_MASK) == D3DFVF_TEX8) ? sizeof(float) * 16 : 0) +
 		0;
 }
+
+
+#define D3DMATRIX_TO_XMMATRIX(mat) DirectX::XMMatrixSet(mat._11, mat._12, mat._13, mat._14, \
+														mat._21, mat._22, mat._23, mat._24, \
+														mat._31, mat._32, mat._33, mat._34, \
+														mat._41, mat._42, mat._43, mat._44)
+
+HRESULT m_IDirect3DDeviceX::GetWorldViewProjectionMatrix(DirectX::XMMATRIX &lpXMMatrix, bool inverse) const
+{
+	_D3DMATRIX worldMatrix, viewMatrix, projectionMatrix;
+
+	HRESULT hr = (*d3d9Device)->GetTransform(D3DTS_WORLD, &worldMatrix);
+	if(FAILED(hr))
+		return hr;
+
+	hr = (*d3d9Device)->GetTransform(D3DTS_VIEW, &viewMatrix);
+	if(FAILED(hr))
+		return hr;
+
+	hr = (*d3d9Device)->GetTransform(D3DTS_PROJECTION, &projectionMatrix);
+	if(FAILED(hr))
+		return hr;
+
+	DirectX::XMMATRIX xmWorldMatrix = D3DMATRIX_TO_XMMATRIX(worldMatrix);
+	DirectX::XMMATRIX xmViewMatrix = D3DMATRIX_TO_XMMATRIX(viewMatrix);
+	DirectX::XMMATRIX xmProjectionMatrix = D3DMATRIX_TO_XMMATRIX(projectionMatrix);
+
+	DirectX::XMMATRIX wvp = DirectX::XMMatrixMultiply(xmWorldMatrix, DirectX::XMMatrixMultiply(xmViewMatrix, xmProjectionMatrix));
+
+	if(inverse)
+	{
+		wvp = DirectX::XMMatrixInverse(nullptr, wvp);
+	}
+
+	lpXMMatrix = wvp;
+
+	return D3D_OK;
+}
+
+#undef D3DMATRIX_TO_XMMATRIX
