@@ -2212,6 +2212,8 @@ HRESULT m_IDirect3DDeviceX::DrawIndexedPrimitive(D3DPRIMITIVETYPE dptPrimitiveTy
 					float *pos = (float*) vertex;
 
 					pos[3] = 1.0f;
+
+					vertex += stride;
 				}
 
 				// Update the FVF
