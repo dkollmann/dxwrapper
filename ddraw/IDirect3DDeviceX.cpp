@@ -2165,42 +2165,60 @@ HRESULT m_IDirect3DDeviceX::DrawIndexedPrimitive(D3DPRIMITIVETYPE dptPrimitiveTy
 		}
 		else
 		{
-			const UINT stride = GetVertexStride(dwVertexTypeDesc);
+			UINT stride = GetVertexStride(dwVertexTypeDesc);
 
+#define REVERSE_POSITIONT_SIZE 4
+
+#if REVERSE_POSITIONT_SIZE == 3 || REVERSE_POSITIONT_SIZE == 4
 			// Handle PositionT
 			if((dwVertexTypeDesc & D3DFVF_XYZRHW) != 0)
 			{
-				// revert the vertives to world space
-				DirectX::XMMATRIX wvpInverseMatrix;
-				hr = GetWorldViewProjectionMatrix(wvpInverseMatrix, true);
+#if REVERSE_POSITIONT_SIZE == 3
+				// Copy vertices to new intermediate buffer
+				static std::vector<UINT8> Dd7to9Vertives;
 
-				if(SUCCEEDED(hr))
+				UINT newstride = stride - sizeof(float);
+
+				Dd7to9Vertives.resize(newstride * dwVertexCount);
+
+				UINT8 *sourceVertex = (UINT8*)lpVertices;
+				UINT8 *targetVertex = (UINT8*)Dd7to9Vertives.data();
+
+				for (UINT x = 0; x < dwVertexCount; x++)
 				{
-					UINT8 *vertex = (UINT8*)lpVertices;
+					// Copy first three components
+					std::memcpy(targetVertex, sourceVertex, sizeof(float) * 3);
 
-					for (UINT x = 0; x < dwVertexCount; x++)
-					{
-						float *pos = (float*) vertex;
+					// Copy the rest
+					const UINT restSize = stride - sizeof(float) * 4;
+					std::memcpy(targetVertex + sizeof(float) * 3, sourceVertex + sizeof(float) * 4, restSize);
 
-						DirectX::XMVECTOR vec = DirectX::XMVectorSet(pos[0], pos[1], pos[2], pos[3]);
-
-						/*DirectX::XMVECTOR w = DirectX::XMVectorSplatW(vec);
-						DirectX::XMVECTOR vecnorm = DirectX::XMVectorDivide(vec, w);*/
-
-						DirectX::XMVECTOR vecnorm = DirectX::XMVector3TransformCoord(vec, wvpInverseMatrix);
-
-						pos[0] = DirectX::XMVectorGetX(vecnorm);
-						pos[1] = DirectX::XMVectorGetY(vecnorm);
-						pos[2] = DirectX::XMVectorGetZ(vecnorm);
-						pos[3] = 1.0f;  //DirectX::XMVectorGetW(vecnorm);*/
-
-						vertex += stride;
-					}
-
-					// update the FVF
-					dwVertexTypeDesc = (dwVertexTypeDesc & ~D3DFVF_XYZRHW) | D3DFVF_XYZW;
+					// Move to next vertex
+					sourceVertex += stride;
+					targetVertex += newstride;
 				}
+
+				// Update settings
+				lpVertices = targetVertex;
+				stride = newstride;
+
+				// Update the FVF
+				dwVertexTypeDesc = (dwVertexTypeDesc & ~D3DFVF_XYZRHW) | D3DFVF_XYZ;
+#else  // REVERSE_POSITIONT_SIZE == 4
+				UINT8 *vertex = (UINT8*)lpVertices;
+
+				for (UINT x = 0; x < dwVertexCount; x++)
+				{
+					float *pos = (float*) vertex;
+
+					pos[3] = 1.0f;
+				}
+
+				// Update the FVF
+				dwVertexTypeDesc = (dwVertexTypeDesc & ~D3DFVF_XYZRHW) | D3DFVF_XYZW;
+#endif
 			}
+#endif
 
 			// Set fixed function vertex type
 			(*d3d9Device)->SetFVF(dwVertexTypeDesc);
