@@ -188,5 +188,5 @@ public:
 	UINT GetNumberOfPrimitives(D3DPRIMITIVETYPE dptPrimitiveType, DWORD dwVertexCount);
 	UINT GetVertexStride(DWORD dwVertexTypeDesc);
 
-	HRESULT GetWorldViewProjectionMatrix(DirectX::XMMATRIX& lpXMMatrix, bool inverse = false) const;
+	HRESULT GetWorldViewProjectionMatrix(DirectX::XMMATRIX& lpXMMatrix, bool fixFor3D, bool inverse = false) const;
 };

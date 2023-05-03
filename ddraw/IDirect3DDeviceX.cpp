@@ -300,7 +300,13 @@ HRESULT m_IDirect3DDeviceX::DeleteMatrix(D3DMATRIXHANDLE d3dMatHandle)
 
 HRESULT m_IDirect3DDeviceX::SetTransform(D3DTRANSFORMSTATETYPE dtstTransformStateType, LPD3DMATRIX lpD3DMatrix)
 {
-	Logging::LogDebug() << __FUNCTION__ << " (" << this << ")";
+	Logging::LogDebug() << __FUNCTION__ << " (" << this << ") " << dtstTransformStateType;
+
+	/*ZeroMemory(lpD3DMatrix, sizeof(_D3DMATRIX));
+	lpD3DMatrix->_11 = 1.0f;
+	lpD3DMatrix->_22 = 1.0f;
+	lpD3DMatrix->_33 = 1.0f;
+	lpD3DMatrix->_44 = 1.0f;*/
 
 	if (Config.Dd7to9)
 	{
@@ -2720,12 +2726,13 @@ UINT m_IDirect3DDeviceX::GetVertexStride(DWORD dwVertexTypeDesc)
 }
 
 
-#define D3DMATRIX_TO_XMMATRIX(mat) DirectX::XMMatrixSet(mat._11, mat._12, mat._13, mat._14, \
-														mat._21, mat._22, mat._23, mat._24, \
-														mat._31, mat._32, mat._33, mat._34, \
-														mat._41, mat._42, mat._43, mat._44)
+#define D3DMATRIX_TO_XMMATRIX(d3dMat) DirectX::XMMatrixSet( \
+	d3dMat._11, d3dMat._21, d3dMat._31, d3dMat._41, \
+	d3dMat._12, d3dMat._22, d3dMat._32, d3dMat._42, \
+	d3dMat._13, d3dMat._23, d3dMat._33, d3dMat._43, \
+	d3dMat._14, d3dMat._24, d3dMat._34, d3dMat._44)
 
-HRESULT m_IDirect3DDeviceX::GetWorldViewProjectionMatrix(DirectX::XMMATRIX &lpXMMatrix, bool inverse) const
+HRESULT m_IDirect3DDeviceX::GetWorldViewProjectionMatrix(DirectX::XMMATRIX &lpXMMatrix, bool fixFor3D, bool inverse) const
 {
 	_D3DMATRIX worldMatrix, viewMatrix, projectionMatrix;
 
@@ -2740,6 +2747,21 @@ HRESULT m_IDirect3DDeviceX::GetWorldViewProjectionMatrix(DirectX::XMMATRIX &lpXM
 	hr = (*d3d9Device)->GetTransform(D3DTS_PROJECTION, &projectionMatrix);
 	if(FAILED(hr))
 		return hr;
+
+	if(fixFor3D)
+	{
+		// do not add 1.0 to Z
+		if(projectionMatrix._34 != 0.0f)
+		{
+			projectionMatrix._34 = 0.0f;
+		}
+
+		// do not scale Z to zero
+		if(projectionMatrix._44 == 0.0f)
+		{
+			projectionMatrix._44 = 1.0f;
+		}
+	}
 
 	DirectX::XMMATRIX xmWorldMatrix = D3DMATRIX_TO_XMMATRIX(worldMatrix);
 	DirectX::XMMATRIX xmViewMatrix = D3DMATRIX_TO_XMMATRIX(viewMatrix);
