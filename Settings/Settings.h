@@ -44,6 +44,7 @@
 	visit(DdrawResolutionHack) \
 	visit(DdrawUseDirect3D9Ex) \
 	visit(DdrawConvertHomogeneousW) \
+	visit(DdrawConvertHomogeneousToWorld) \
 	visit(DdrawUseNativeResolution) \
 	visit(DdrawEnableMouseHook) \
 	visit(DdrawHookSystem32) \
@@ -211,6 +212,7 @@ struct CONFIG
 	bool DdrawMaintainAspectRatio = false;		// Keeps the current DirectDraw aspect ratio when overriding the game's resolution
 	bool DdrawUseDirect3D9Ex = false;			// Use Direct3D9Ex extensions for Dd7to9
 	bool DdrawConvertHomogeneousW = false;		// Convert primites using D3DFVF_XYZRHW to D3DFVF_XYZW.
+	bool DdrawConvertHomogeneousToWorld = false;  // Convert primitives back into a world space. Needed for RTX.
 	bool DdrawUseNativeResolution = false;		// Uses the current screen resolution for Dd7to9
 	DWORD DdrawClippedWidth = 0;				// Used to scaled Direct3d9 to use this width when using Dd7to9
 	DWORD DdrawClippedHeight = 0;				// Used to scaled Direct3d9 to use this height when using Dd7to9

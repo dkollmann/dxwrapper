@@ -1,8 +1,7 @@
 #pragma once
 
+#include <DirectXMath.h>
 #include "IDirectDrawX.h"
-
-namespace DirectX { struct XMMATRIX; }
 
 class m_IDirect3DDeviceX : public IUnknown, public AddressLookupTableDdrawObject
 {
@@ -25,6 +24,12 @@ private:
 	m_IDirect3DDevice2 *WrapperInterface2;
 	m_IDirect3DDevice3 *WrapperInterface3;
 	m_IDirect3DDevice7 *WrapperInterface7;
+
+	// Store the view matrix from the original game, as it represents the actual camera
+	DirectX::XMMATRIX DdrawConvertHomogeneousToWorld_ViewMatrixInverse;
+
+	// Intermediate buffer for the geometry conversion
+	std::vector<UINT8> DdrawConvertHomogeneousToWorld_IntermediateGeometry;
 
 	// Wrapper interface functions
 	inline REFIID GetWrapperType(DWORD DirectXVersion)

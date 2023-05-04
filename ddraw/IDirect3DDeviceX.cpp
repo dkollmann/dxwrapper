@@ -335,6 +335,21 @@ HRESULT m_IDirect3DDeviceX::SetTransform(D3DTRANSFORMSTATETYPE dtstTransformStat
 		{
 			if(dtstTransformStateType == D3DTS_VIEW)
 			{
+				if(Config.DdrawConvertHomogeneousToWorld)
+				{
+					// Set the matrix as the projection matrix instead
+					if(FAILED((*d3d9Device)->SetTransform(D3DTS_PROJECTION, lpD3DMatrix)))
+					{
+						Logging::Log() << __FUNCTION__ << " Error: Failed to set projection matrix!";
+					}
+
+					// Store the view inverse matrix of the game
+					DirectX::XMMATRIX view = DirectX::XMLoadFloat4x4((DirectX::XMFLOAT4X4*)lpD3DMatrix);
+
+					DdrawConvertHomogeneousToWorld_ViewMatrixInverse = DirectX::XMMatrixInverse(nullptr, view);
+				}
+
+				// Replace the matrix with one that handles 
 				D3DVIEWPORT9 Viewport9;
 				if(SUCCEEDED((*d3d9Device)->GetViewport(&Viewport9)))
 				{
@@ -2209,24 +2224,67 @@ HRESULT m_IDirect3DDeviceX::DrawIndexedPrimitive(D3DPRIMITIVETYPE dptPrimitiveTy
 		}
 		else
 		{
-			const UINT stride = GetVertexStride(dwVertexTypeDesc);
+			UINT stride = GetVertexStride(dwVertexTypeDesc);
 
 			// Handle PositionT
 			if((dwVertexTypeDesc & D3DFVF_XYZRHW) != 0 && Config.DdrawConvertHomogeneousW)
 			{
-				UINT8 *vertex = (UINT8*)lpVertices;
-
-				for (UINT x = 0; x < dwVertexCount; x++)
+				if(!Config.DdrawConvertHomogeneousToWorld)
 				{
-					float *pos = (float*) vertex;
+					UINT8 *vertex = (UINT8*)lpVertices;
 
-					pos[3] = 1.0f;
+					for (UINT x = 0; x < dwVertexCount; x++)
+					{
+						float *pos = (float*) vertex;
 
-					vertex += stride;
+						pos[3] = 1.0f;
+
+						vertex += stride;
+					}
+
+					// Update the FVF
+					dwVertexTypeDesc = (dwVertexTypeDesc & ~D3DFVF_XYZRHW) | D3DFVF_XYZW;
 				}
+				else
+				{
+					const UINT newstride = stride - sizeof(float);
+					const UINT restSize = stride - sizeof(float) * 4;
 
-				// Update the FVF
-				dwVertexTypeDesc = (dwVertexTypeDesc & ~D3DFVF_XYZRHW) | D3DFVF_XYZW;
+					DdrawConvertHomogeneousToWorld_IntermediateGeometry.resize(newstride * dwVertexCount);
+
+					UINT8 *sourceVertex = (UINT8*)lpVertices;
+					UINT8 *targetVertex = (UINT8*)DdrawConvertHomogeneousToWorld_IntermediateGeometry.data();
+
+					lpVertices = targetVertex;
+
+					for (UINT x = 0; x < dwVertexCount; x++)
+					{
+						// Transform the vertices into world space
+						float *srcpos = (float*) sourceVertex;
+						float *trgtpos = (float*) targetVertex;
+
+						DirectX::XMVECTOR xpos = DirectX::XMVectorSet(srcpos[0], srcpos[1], srcpos[2], 1.0f);
+
+						DirectX::XMVECTOR xpos_global = DirectX::XMVector3TransformCoord(xpos, DdrawConvertHomogeneousToWorld_ViewMatrixInverse);
+
+						trgtpos[0] = DirectX::XMVectorGetX(xpos_global);
+						trgtpos[1] = DirectX::XMVectorGetY(xpos_global);
+						trgtpos[2] = DirectX::XMVectorGetZ(xpos_global);
+
+						// Copy the rest
+						std::memcpy(targetVertex + sizeof(float) * 3, sourceVertex + sizeof(float) * 4, restSize);
+
+						// Move to next vertex
+						sourceVertex += stride;
+						targetVertex += newstride;
+					}
+
+					// Update stride
+					stride = newstride;
+
+					// Update the FVF
+					dwVertexTypeDesc = (dwVertexTypeDesc & ~D3DFVF_XYZRHW) | D3DFVF_XYZ;
+				}
 			}
 
 			// Set fixed function vertex type
