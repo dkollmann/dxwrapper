@@ -2690,6 +2690,11 @@ HRESULT m_IDirectDrawX::CreateD3D9Device()
 			}
 		}
 
+		if(DepthStencilSurface == D3DFMT_UNKNOWN && Config.DdrawAutoStencilFormat > 0)
+		{
+			DepthStencilSurface = (D3DFORMAT) Config.DdrawAutoStencilFormat;
+		}
+
 		// Set display window
 		ZeroMemory(&presParams, sizeof(presParams));
 
