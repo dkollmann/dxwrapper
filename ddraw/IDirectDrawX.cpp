@@ -87,6 +87,7 @@ DWORD LastBPP;
 // Display mode settings
 bool isWindowed;					// Window mode enabled
 bool AntiAliasing;
+D3DFORMAT DepthStencilSurface;
 bool AllowModeX;
 bool MultiThreaded;
 bool FPUPreserve;
@@ -510,7 +511,24 @@ HRESULT m_IDirectDrawX::CreateSurface2(LPDDSURFACEDESC2 lpDDSurfaceDesc2, LPDIRE
 		if (((lpDDSurfaceDesc2->dwFlags & DDSD_PIXELFORMAT) && (lpDDSurfaceDesc2->ddpfPixelFormat.dwFlags & DDPF_ZBUFFER)) ||
 			(lpDDSurfaceDesc2->ddsCaps.dwCaps & DDSCAPS_ZBUFFER) || (lpDDSurfaceDesc2->dwFlags & DDSD_ZBUFFERBITDEPTH))
 		{
-			LOG_LIMIT(100, __FUNCTION__ << " Warning: z-buffer not Implemented.");
+			D3DFORMAT NewDepthStencilSurface = GetDisplayFormat(lpDDSurfaceDesc2->ddpfPixelFormat);
+			const bool IsStencilSurface = (NewDepthStencilSurface >= 70 && NewDepthStencilSurface <= 80);
+
+			if (IsStencilSurface && NewDepthStencilSurface != DepthStencilSurface)
+			{
+				if (DepthStencilSurface != D3DFMT_UNKNOWN)
+				{
+					LOG_LIMIT(100, __FUNCTION__ << " Warning: existing stencil surface already setup.");
+				}
+				DepthStencilSurface = NewDepthStencilSurface;
+
+				// Check if there is a change in the present parameters
+				if (d3d9Device)
+				{
+					// Recreate d3d9 device
+					CreateD3D9Device();
+				}
+			}
 		}
 
 		// Check for Overlay
@@ -2208,6 +2226,7 @@ void m_IDirectDrawX::InitDdraw(DWORD DirectXVersion)
 		// Display mode settings
 		isWindowed = true;
 		AntiAliasing = false;
+		DepthStencilSurface = D3DFMT_UNKNOWN;
 		AllowModeX = false;
 		MultiThreaded = false;
 		FPUPreserve = false;
@@ -2470,6 +2489,11 @@ HDC m_IDirectDrawX::GetDC()
 	return MainhDC;
 }
 
+void m_IDirectDrawX::ClearSencilSurface()
+{
+	DepthStencilSurface = D3DFMT_UNKNOWN;
+}
+
 D3DMULTISAMPLE_TYPE m_IDirectDrawX::GetMultiSampleType()
 {
 	return presParams.MultiSampleType;
@@ -2677,9 +2701,9 @@ HRESULT m_IDirectDrawX::CreateD3D9Device()
 		// Backbuffer
 		presParams.BackBufferCount = 1;
 		// Auto stencel
-		presParams.EnableAutoDepthStencil = Config.DdrawAutoStencilFormat > 0 ? TRUE : FALSE;
+		presParams.EnableAutoDepthStencil = (DepthStencilSurface != D3DFMT_UNKNOWN) ? TRUE : FALSE;
 		// Auto stencel format
-		presParams.AutoDepthStencilFormat = (D3DFORMAT) Config.DdrawAutoStencilFormat;
+		presParams.AutoDepthStencilFormat = DepthStencilSurface;
 		// Interval level
 		presParams.PresentationInterval = D3DPRESENT_INTERVAL_IMMEDIATE;
 		// Anti-aliasing
