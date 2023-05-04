@@ -302,24 +302,21 @@ HRESULT m_IDirect3DDeviceX::SetTransform(D3DTRANSFORMSTATETYPE dtstTransformStat
 {
 	Logging::LogDebug() << __FUNCTION__ << " (" << this << ") " << dtstTransformStateType;
 
-	if(dtstTransformStateType == D3DTS_VIEW)
+	if(Config.DdrawConvertHomogeneousW)
 	{
-		ZeroMemory(lpD3DMatrix, sizeof(_D3DMATRIX));
-		lpD3DMatrix->_11 = 2.0f / 1920.0f;
-		lpD3DMatrix->_22 = -2.0f / 1080.0f;
-		lpD3DMatrix->_33 = -0.0005f;
-		lpD3DMatrix->_44 = 1.0f;
+		if(dtstTransformStateType == D3DTS_VIEW)
+		{
+			ZeroMemory(lpD3DMatrix, sizeof(_D3DMATRIX));
+			lpD3DMatrix->_11 = 2.0f / 1920.0f;
+			lpD3DMatrix->_22 = -2.0f / 1080.0f;
+			lpD3DMatrix->_33 = -0.0005f;
+			lpD3DMatrix->_44 = 1.0f;
+		}
+		else
+		{
+			return D3D_OK;
+		}
 	}
-	else
-	{
-		return D3D_OK;
-	}
-
-	/*ZeroMemory(lpD3DMatrix, sizeof(_D3DMATRIX));
-	lpD3DMatrix->_11 = 1.0f;
-	lpD3DMatrix->_22 = 1.0f;
-	lpD3DMatrix->_33 = 1.0f;
-	lpD3DMatrix->_44 = 1.0f;*/
 
 	if (Config.Dd7to9)
 	{
@@ -1778,8 +1775,10 @@ HRESULT m_IDirect3DDeviceX::SetRenderState(D3DRENDERSTATETYPE dwRenderStateType,
 {
 	Logging::LogDebug() << __FUNCTION__ << " (" << this << ")";
 
-	if(dwRenderStateType == D3DRS_LIGHTING)
+	if(dwRenderStateType == D3DRS_LIGHTING && Config.DdrawConvertHomogeneousW)
+	{
 		dwRenderState = FALSE;
+	}
 
 	if (Config.Dd7to9)
 	{
@@ -2187,47 +2186,11 @@ HRESULT m_IDirect3DDeviceX::DrawIndexedPrimitive(D3DPRIMITIVETYPE dptPrimitiveTy
 		}
 		else
 		{
-			UINT stride = GetVertexStride(dwVertexTypeDesc);
+			const UINT stride = GetVertexStride(dwVertexTypeDesc);
 
-#define REVERSE_POSITIONT_SIZE 4
-
-#if REVERSE_POSITIONT_SIZE == 3 || REVERSE_POSITIONT_SIZE == 4
 			// Handle PositionT
-			if((dwVertexTypeDesc & D3DFVF_XYZRHW) != 0)
+			if((dwVertexTypeDesc & D3DFVF_XYZRHW) != 0 && Config.DdrawConvertHomogeneousW)
 			{
-#if REVERSE_POSITIONT_SIZE == 3
-				// Copy vertices to new intermediate buffer
-				static std::vector<UINT8> Dd7to9Vertives;
-
-				UINT newstride = stride - sizeof(float);
-
-				Dd7to9Vertives.resize(newstride * dwVertexCount);
-
-				UINT8 *sourceVertex = (UINT8*)lpVertices;
-				UINT8 *targetVertex = (UINT8*)Dd7to9Vertives.data();
-
-				lpVertices = targetVertex;
-
-				for (UINT x = 0; x < dwVertexCount; x++)
-				{
-					// Copy first three components
-					std::memcpy(targetVertex, sourceVertex, sizeof(float) * 3);
-
-					// Copy the rest
-					const UINT restSize = stride - sizeof(float) * 4;
-					std::memcpy(targetVertex + sizeof(float) * 3, sourceVertex + sizeof(float) * 4, restSize);
-
-					// Move to next vertex
-					sourceVertex += stride;
-					targetVertex += newstride;
-				}
-
-				// Update settings
-				stride = newstride;
-
-				// Update the FVF
-				dwVertexTypeDesc = (dwVertexTypeDesc & ~D3DFVF_XYZRHW) | D3DFVF_XYZ;
-#else  // REVERSE_POSITIONT_SIZE == 4
 				UINT8 *vertex = (UINT8*)lpVertices;
 
 				for (UINT x = 0; x < dwVertexCount; x++)
@@ -2241,9 +2204,7 @@ HRESULT m_IDirect3DDeviceX::DrawIndexedPrimitive(D3DPRIMITIVETYPE dptPrimitiveTy
 
 				// Update the FVF
 				dwVertexTypeDesc = (dwVertexTypeDesc & ~D3DFVF_XYZRHW) | D3DFVF_XYZW;
-#endif
 			}
-#endif
 
 			// Set fixed function vertex type
 			(*d3d9Device)->SetFVF(dwVertexTypeDesc);
