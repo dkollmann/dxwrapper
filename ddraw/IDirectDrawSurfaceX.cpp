@@ -1782,6 +1782,8 @@ HRESULT m_IDirectDrawSurfaceX::GetSurfaceDesc2(LPDDSURFACEDESC2 lpDDSurfaceDesc2
 			lpDDSurfaceDesc2->lPitch = ComputePitch(GetByteAlignedWidth(surfaceDesc2.dwWidth, surfaceBitCount), GetBitCount(lpDDSurfaceDesc2->ddpfPixelFormat));
 		}
 
+		lpDDSurfaceDesc2->lpSurface = nullptr;
+
 		// Return
 		return DD_OK;
 	}
@@ -3076,10 +3078,10 @@ void m_IDirectDrawSurfaceX::ReleaseSurface()
 	{
 		ddrawParent->RemoveSurfaceFromVector(this);
 
-		// ToDo: Clear sencil surface only when using the one created by the d3d9 device
-		if (surfaceFormat >= 70 && surfaceFormat <= 80)
+		// ToDo: Clear stencil surface only when using the one created by the d3d9 device
+		if (IsDepthBuffer())
 		{
-			ddrawParent->ClearSencilSurface();
+			ddrawParent->ClearDepthStencilSurface();
 		}
 	}
 
@@ -3277,7 +3279,7 @@ HRESULT m_IDirectDrawSurfaceX::CreateD3d9Surface()
 		// Create depth buffer
 		else if (IsDepthBuffer())
 		{
-			// ToDo: Get existing sencil surface rather than creating a new one
+			// ToDo: Get existing stencil surface rather than creating a new one
 			if (FAILED(((*d3d9Device)->CreateDepthStencilSurface(Width, Height, Format, ddrawParent->GetMultiSampleType(), ddrawParent->GetMultiSampleQuality(), TRUE, &surface3D, nullptr))))
 			{
 				LOG_LIMIT(100, __FUNCTION__ << " Error: failed to create depth buffer surface. Size: " << Width << "x" << Height << " Format: " << surfaceFormat << " dwCaps: " << Logging::hex(surfaceDesc2.ddsCaps.dwCaps));
@@ -4736,6 +4738,11 @@ HRESULT m_IDirectDrawSurfaceX::CopySurface(m_IDirectDrawSurfaceX* pSourceSurface
 	const bool IsColorKey = ((dwFlags & BLT_COLORKEY) != 0);
 	const bool IsMirrorLeftRight = ((dwFlags & BLT_MIRRORLEFTRIGHT) != 0);
 	const bool IsMirrorUpDown = ((dwFlags & BLT_MIRRORUPDOWN) != 0);
+	const DWORD D3DXFilter =
+		(IsStretchRect && DestFormat == D3DFMT_P8) || (Filter & D3DTEXF_POINT) ? D3DX_FILTER_POINT :	// Force palette surfaces to use point filtering to prevent color banding
+		(Filter & D3DTEXF_LINEAR) ? D3DX_FILTER_LINEAR :												// Use linear filtering when requested by the application
+		(IsStretchRect) ? D3DX_FILTER_POINT :															// Default to point filtering when stretching the rect, same as DirectDraw
+		D3DX_FILTER_NONE;
 
 	// Get width and height of rect
 	LONG SrcRectWidth = SrcRect.right - SrcRect.left;
@@ -4797,7 +4804,7 @@ HRESULT m_IDirectDrawSurfaceX::CopySurface(m_IDirectDrawSurfaceX* pSourceSurface
 				break;
 			}
 
-			hr = D3DXLoadSurfaceFromSurface(pDestSurfaceD9, nullptr, &DestRect, pSourceSurfaceD9, nullptr, &SrcRect, D3DX_FILTER_NONE, 0);
+			hr = D3DXLoadSurfaceFromSurface(pDestSurfaceD9, nullptr, &DestRect, pSourceSurfaceD9, nullptr, &SrcRect, D3DXFilter, 0);
 
 			if (FAILED(hr))
 			{
@@ -4837,7 +4844,7 @@ HRESULT m_IDirectDrawSurfaceX::CopySurface(m_IDirectDrawSurfaceX* pSourceSurface
 				// function to set the brush origin. If it fails to do so, brush misalignment occurs.
 				POINT org;
 				GetBrushOrgEx(emu->surfaceDC, &org);
-				SetStretchBltMode(emu->surfaceDC, HALFTONE);
+				SetStretchBltMode(emu->surfaceDC, (Filter & D3DTEXF_LINEAR) ? HALFTONE : COLORONCOLOR);
 				SetBrushOrgEx(emu->surfaceDC, org.x, org.y, nullptr);
 			}
 
@@ -4860,14 +4867,7 @@ HRESULT m_IDirectDrawSurfaceX::CopySurface(m_IDirectDrawSurfaceX* pSourceSurface
 
 			if (pSourceSurfaceD9 && pDestSurfaceD9)
 			{
-				DWORD DX3XFilter =
-					(IsStretchRect && DestFormat == D3DFMT_P8) ? D3DX_FILTER_POINT :
-					(Filter & D3DTEXF_LINEAR) ? D3DX_FILTER_LINEAR :
-					(Filter & D3DTEXF_POINT) ? D3DX_FILTER_POINT :
-					(IsStretchRect) ? D3DX_FILTER_LINEAR :
-					D3DX_FILTER_NONE;
-
-				if (SUCCEEDED(D3DXLoadSurfaceFromSurface(pDestSurfaceD9, nullptr, &DestRect, pSourceSurfaceD9, nullptr, &SrcRect, DX3XFilter, 0)))
+				if (SUCCEEDED(D3DXLoadSurfaceFromSurface(pDestSurfaceD9, nullptr, &DestRect, pSourceSurfaceD9, nullptr, &SrcRect, D3DXFilter, 0)))
 				{
 					break;
 				}
