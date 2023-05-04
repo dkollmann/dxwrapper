@@ -302,6 +302,19 @@ HRESULT m_IDirect3DDeviceX::SetTransform(D3DTRANSFORMSTATETYPE dtstTransformStat
 {
 	Logging::LogDebug() << __FUNCTION__ << " (" << this << ") " << dtstTransformStateType;
 
+	if(dtstTransformStateType == D3DTS_VIEW)
+	{
+		ZeroMemory(lpD3DMatrix, sizeof(_D3DMATRIX));
+		lpD3DMatrix->_11 = 2.0f / 1920.0f;
+		lpD3DMatrix->_22 = -2.0f / 1080.0f;
+		lpD3DMatrix->_33 = -0.0005f;
+		lpD3DMatrix->_44 = 1.0f;
+	}
+	else
+	{
+		return D3D_OK;
+	}
+
 	/*ZeroMemory(lpD3DMatrix, sizeof(_D3DMATRIX));
 	lpD3DMatrix->_11 = 1.0f;
 	lpD3DMatrix->_22 = 1.0f;
@@ -1765,6 +1778,9 @@ HRESULT m_IDirect3DDeviceX::SetRenderState(D3DRENDERSTATETYPE dwRenderStateType,
 {
 	Logging::LogDebug() << __FUNCTION__ << " (" << this << ")";
 
+	if(dwRenderStateType == D3DRS_LIGHTING)
+		dwRenderState = FALSE;
+
 	if (Config.Dd7to9)
 	{
 		// Check for device interface
@@ -2190,6 +2206,8 @@ HRESULT m_IDirect3DDeviceX::DrawIndexedPrimitive(D3DPRIMITIVETYPE dptPrimitiveTy
 				UINT8 *sourceVertex = (UINT8*)lpVertices;
 				UINT8 *targetVertex = (UINT8*)Dd7to9Vertives.data();
 
+				lpVertices = targetVertex;
+
 				for (UINT x = 0; x < dwVertexCount; x++)
 				{
 					// Copy first three components
@@ -2205,7 +2223,6 @@ HRESULT m_IDirect3DDeviceX::DrawIndexedPrimitive(D3DPRIMITIVETYPE dptPrimitiveTy
 				}
 
 				// Update settings
-				lpVertices = targetVertex;
 				stride = newstride;
 
 				// Update the FVF
