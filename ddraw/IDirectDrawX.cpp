@@ -2575,7 +2575,12 @@ void m_IDirectDrawX::GetFullDisplay(DWORD &Width, DWORD &Height, DWORD& BPP, DWO
 	{
 		Width = presParams.BackBufferWidth;
 		Height = presParams.BackBufferHeight;
-		RefreshRate = presParams.FullScreen_RefreshRateInHz;
+		BPP = Utils::GetBitCount(hWnd);
+	}
+	else if (surfaceWidth && surfaceHeight)
+	{
+		Width = surfaceWidth;
+		Height = surfaceHeight;
 		BPP = Utils::GetBitCount(hWnd);
 	}
 	else if (isWindowed && IsWindow(hWnd) && !Config.DdrawWriteToGDI)
@@ -2744,7 +2749,7 @@ HRESULT m_IDirectDrawX::CreateD3D9Device()
 		// Auto stencel format
 		presParams.AutoDepthStencilFormat = (Config.DdrawOverrideStencilFormat) ? (D3DFORMAT)Config.DdrawOverrideStencilFormat : DepthStencilSurface;
 		// Auto stencel
-		presParams.EnableAutoDepthStencil = (presParams.AutoDepthStencilFormat != D3DFMT_UNKNOWN) ? TRUE : FALSE;
+		presParams.EnableAutoDepthStencil = (presParams.AutoDepthStencilFormat) ? TRUE : FALSE;
 		// Interval level
 		presParams.PresentationInterval = D3DPRESENT_INTERVAL_IMMEDIATE;
 		// Anti-aliasing
