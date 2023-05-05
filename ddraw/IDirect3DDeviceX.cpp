@@ -298,6 +298,34 @@ HRESULT m_IDirect3DDeviceX::DeleteMatrix(D3DMATRIXHANDLE d3dMatHandle)
 	return GetProxyInterfaceV1()->DeleteMatrix(d3dMatHandle);
 }
 
+void CopyPositionAndOrientationFromViewMatrix(const DirectX::XMMATRIX& src, DirectX::XMMATRIX& dest)
+{
+	// Extract orientation
+	DirectX::XMVECTOR fwd = DirectX::XMVectorNegate(src.r[2]);
+	DirectX::XMVECTOR right = src.r[0];
+	DirectX::XMVECTOR up = src.r[1];
+
+	// Extract position
+	DirectX::XMVECTOR pos = src.r[3];
+
+	// Build new transform
+	dest.r[0] = XMVectorSelect(DirectX::XMVectorNegate(fwd), right, DirectX::g_XMSelect1110);
+	dest.r[1] = up;
+	dest.r[2] = fwd;
+	dest.r[3] = pos;
+
+	// Clear the last row
+	dest.r[3] = DirectX::XMVectorSetW(dest.r[3], 1.0f);
+}
+
+void CopyPositionAndOrientationFromViewMatrix(const _D3DMATRIX *src, DirectX::XMMATRIX& dest)
+{
+	DirectX::XMMATRIX srcx = DirectX::XMLoadFloat4x4((DirectX::XMFLOAT4X4*)src);
+
+	CopyPositionAndOrientationFromViewMatrix(srcx, dest);
+}
+
+#pragma optimize("", off)
 HRESULT m_IDirect3DDeviceX::SetTransform(D3DTRANSFORMSTATETYPE dtstTransformStateType, LPD3DMATRIX lpD3DMatrix)
 {
 	Logging::LogDebug() << __FUNCTION__ << " (" << this << ") " << dtstTransformStateType;
@@ -338,7 +366,17 @@ HRESULT m_IDirect3DDeviceX::SetTransform(D3DTRANSFORMSTATETYPE dtstTransformStat
 				if(Config.DdrawConvertHomogeneousToWorld)
 				{
 					// Set the matrix as the projection matrix instead
-					if(FAILED((*d3d9Device)->SetTransform(D3DTS_PROJECTION, lpD3DMatrix)))
+
+					// The Black & White matrix is an ortho camera, so create a perspective one matching the game
+					//DirectX::XMMATRIX posAndOrientation;
+					//CopyPositionAndOrientationFromViewMatrix(lpD3DMatrix, posAndOrientation);
+
+					DirectX::XMMATRIX proj = DirectX::XMMatrixPerspectiveFovLH(90.0f * (3.14159265359f / 180.0f), 16.0f / 9.0f, 1.0f, 1000.0f);
+
+					_D3DMATRIX proj9;
+					DirectX::XMStoreFloat4x4((DirectX::XMFLOAT4X4*)&proj9, proj);
+
+					if(FAILED((*d3d9Device)->SetTransform(D3DTS_PROJECTION, &proj9)))
 					{
 						Logging::Log() << __FUNCTION__ << " Error: Failed to set projection matrix!";
 					}
@@ -349,7 +387,7 @@ HRESULT m_IDirect3DDeviceX::SetTransform(D3DTRANSFORMSTATETYPE dtstTransformStat
 					DdrawConvertHomogeneousToWorld_ViewMatrixInverse = DirectX::XMMatrixInverse(nullptr, view);
 				}
 
-				// Replace the matrix with one that handles 
+				// Replace the matrix with one that handles D3DFVF_XYZRHW geometry
 				D3DVIEWPORT9 Viewport9;
 				if(SUCCEEDED((*d3d9Device)->GetViewport(&Viewport9)))
 				{
@@ -360,6 +398,12 @@ HRESULT m_IDirect3DDeviceX::SetTransform(D3DTRANSFORMSTATETYPE dtstTransformStat
 					lpD3DMatrix->_41 = -1.0f;  // translate X
 					lpD3DMatrix->_42 = 1.0f;   // translate Y
 					lpD3DMatrix->_44 = 1.0f;
+
+					// Compensate near plane
+					if(Config.DdrawConvertHomogeneousToWorld)
+					{
+						lpD3DMatrix->_43 = 1.0f;   // translate Z
+					}
 				}
 			}
 			else
@@ -384,6 +428,7 @@ HRESULT m_IDirect3DDeviceX::SetTransform(D3DTRANSFORMSTATETYPE dtstTransformStat
 		return GetProxyInterfaceV7()->SetTransform(dtstTransformStateType, lpD3DMatrix);
 	}
 }
+#pragma optimize("", on)
 
 HRESULT m_IDirect3DDeviceX::GetTransform(D3DTRANSFORMSTATETYPE dtstTransformStateType, LPD3DMATRIX lpD3DMatrix)
 {
