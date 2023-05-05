@@ -3939,7 +3939,7 @@ HRESULT m_IDirectDrawSurfaceX::PresentSurface(bool isSkipScene)
 			}
 
 			// Set vertex format
-			if (FAILED((*d3d9Device)->SetFVF(TLVERTEXFVF)))
+			if (FAILED((*d3d9Device)->SetFVF(D3DFVF_XYZW | D3DFVF_TEX1)))
 			{
 				LOG_LIMIT(100, __FUNCTION__ << " Error: failed to set the current vertex stream format");
 				hr = DDERR_GENERIC;
