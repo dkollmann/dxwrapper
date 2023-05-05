@@ -363,47 +363,69 @@ HRESULT m_IDirect3DDeviceX::SetTransform(D3DTRANSFORMSTATETYPE dtstTransformStat
 		{
 			if(dtstTransformStateType == D3DTS_VIEW)
 			{
-				if(Config.DdrawConvertHomogeneousToWorld)
+				D3DVIEWPORT9 Viewport9;
+				if(SUCCEEDED((*d3d9Device)->GetViewport(&Viewport9)))
 				{
-					// Set the matrix as the projection matrix instead
+					const float width = (float)Viewport9.Width;
+					const float height = (float)Viewport9.Height;
 
-					// The Black & White matrix is an ortho camera, so create a perspective one matching the game
-					//DirectX::XMMATRIX posAndOrientation;
-					//CopyPositionAndOrientationFromViewMatrix(lpD3DMatrix, posAndOrientation);
+					// Overload the given matrix with an actual 3D camera
+					DirectX::XMMATRIX proj;
+					if(Config.DdrawConvertHomogeneousToWorld)
+					{
+						// The Black & White matrix is an ortho camera, so create a perspective one matching the game
+						proj = DirectX::XMMatrixPerspectiveFovLH(90.0f * (3.14159265359f / 180.0f), width / height, 1.0f, 1000.0f);
 
-					DirectX::XMMATRIX proj = DirectX::XMMatrixPerspectiveFovLH(90.0f * (3.14159265359f / 180.0f), 16.0f / 9.0f, 1.0f, 1000.0f);
+						_D3DMATRIX proj9;
+						DirectX::XMStoreFloat4x4((DirectX::XMFLOAT4X4*)&proj9, proj);
 
-					_D3DMATRIX proj9;
-					DirectX::XMStoreFloat4x4((DirectX::XMFLOAT4X4*)&proj9, proj);
+						if(FAILED((*d3d9Device)->SetTransform(D3DTS_PROJECTION, &proj9)))
+						{
+							Logging::Log() << __FUNCTION__ << " Error: Failed to set projection matrix!";
+						}
+					}
 
-					if(FAILED((*d3d9Device)->SetTransform(D3DTS_PROJECTION, &proj9)))
+					// Replace the matrix with one that handles D3DFVF_XYZRHW geometry
+					_D3DMATRIX view;
+					ZeroMemory(&view, sizeof(_D3DMATRIX));
+					view._11 = 2.0f / width;
+					view._22 = -2.0f / height;
+					view._33 = 1.0f;
+					view._41 = -1.0f;  // translate X
+					view._42 = 1.0f;   // translate Y
+					view._44 = 1.0f;
+
+					// Generate the view matrix using the given position and orientation, and the matrix needed to compensate for the homogenous view
+					if(Config.DdrawConvertHomogeneousToWorld)
+					{
+						// Compensate near plane
+						//view._41 = 0.0f;  // translate X
+						//view._42 = 0.0f;   // translate Y
+						view._43 = 1.0f;   // translate Z
+
+						// Combine both matrices
+						DirectX::XMMATRIX viewx = DirectX::XMLoadFloat4x4((DirectX::XMFLOAT4X4*)&view);
+
+						DirectX::XMMATRIX posAndOrientation;
+						CopyPositionAndOrientationFromViewMatrix(lpD3DMatrix, posAndOrientation);
+
+						DirectX::XMMATRIX view3d = DirectX::XMMatrixMultiply(posAndOrientation, viewx);
+
+						// Replace the view matrix with the combined one
+						DirectX::XMStoreFloat4x4((DirectX::XMFLOAT4X4*)&view, view3d);
+
+						// Store the view inverse matrix of the game, so we can transform the geometry with it
+						DirectX::XMMATRIX vp = DirectX::XMMatrixMultiply(view3d, proj);
+
+						DdrawConvertHomogeneousToWorld_ViewMatrixInverse = DirectX::XMMatrixInverse(nullptr, vp);
+					}
+
+					if(FAILED((*d3d9Device)->SetTransform(D3DTS_VIEW, &view)))
 					{
 						Logging::Log() << __FUNCTION__ << " Error: Failed to set projection matrix!";
 					}
 
-					// Store the view inverse matrix of the game
-					DirectX::XMMATRIX view = DirectX::XMLoadFloat4x4((DirectX::XMFLOAT4X4*)lpD3DMatrix);
-
-					DdrawConvertHomogeneousToWorld_ViewMatrixInverse = DirectX::XMMatrixInverse(nullptr, view);
-				}
-
-				// Replace the matrix with one that handles D3DFVF_XYZRHW geometry
-				D3DVIEWPORT9 Viewport9;
-				if(SUCCEEDED((*d3d9Device)->GetViewport(&Viewport9)))
-				{
-					ZeroMemory(lpD3DMatrix, sizeof(_D3DMATRIX));
-					lpD3DMatrix->_11 = 2.0f / (float)Viewport9.Width;
-					lpD3DMatrix->_22 = -2.0f / (float)Viewport9.Height;
-					lpD3DMatrix->_33 = 1.0f;
-					lpD3DMatrix->_41 = -1.0f;  // translate X
-					lpD3DMatrix->_42 = 1.0f;   // translate Y
-					lpD3DMatrix->_44 = 1.0f;
-
-					// Compensate near plane
-					if(Config.DdrawConvertHomogeneousToWorld)
-					{
-						lpD3DMatrix->_43 = 1.0f;   // translate Z
-					}
+					return D3D_OK;
 				}
 			}
 			else
