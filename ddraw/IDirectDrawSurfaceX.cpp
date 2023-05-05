@@ -1782,7 +1782,10 @@ HRESULT m_IDirectDrawSurfaceX::GetSurfaceDesc2(LPDDSURFACEDESC2 lpDDSurfaceDesc2
 			lpDDSurfaceDesc2->lPitch = ComputePitch(GetByteAlignedWidth(surfaceDesc2.dwWidth, surfaceBitCount), GetBitCount(lpDDSurfaceDesc2->ddpfPixelFormat));
 		}
 
-		lpDDSurfaceDesc2->lpSurface = nullptr;
+		if (!(surfaceDesc2.dwFlags & DDSD_LPSURFACE))
+		{
+			lpDDSurfaceDesc2->lpSurface = nullptr;
+		}
 
 		// Return
 		return DD_OK;
@@ -3712,10 +3715,7 @@ void m_IDirectDrawSurfaceX::ReleaseD9Surface(bool BackupData)
 	{
 		if (LastDC)
 		{
-			if (BackupData)
-			{
-				ReleaseDC(LastDC);
-			}
+			ReleaseDC(LastDC);
 			LastDC = nullptr;
 		}
 		IsInDC = false;
@@ -3724,10 +3724,7 @@ void m_IDirectDrawSurfaceX::ReleaseD9Surface(bool BackupData)
 	// Unlock surface (before releasing)
 	if (IsLocked)
 	{
-		if (BackupData)
-		{
-			UnlockD39Surface();
-		}
+		UnlockD39Surface();
 		IsLocked = false;
 		LockedWithID = 0;
 	}
@@ -3812,7 +3809,7 @@ void m_IDirectDrawSurfaceX::ReleaseD9Surface(bool BackupData)
 	if (paletteTexture)
 	{
 		Logging::LogDebug() << __FUNCTION__ << " Releasing Direct3D9 palette texture surface";
-		if (BackupData && d3d9Device && *d3d9Device)
+		if (d3d9Device && *d3d9Device)
 		{
 			(*d3d9Device)->SetTexture(1, nullptr);
 		}
@@ -3828,7 +3825,7 @@ void m_IDirectDrawSurfaceX::ReleaseD9Surface(bool BackupData)
 	if (pixelShader)
 	{
 		Logging::LogDebug() << __FUNCTION__ << " Releasing Direct3D9 pixel shader";
-		if (BackupData && d3d9Device && *d3d9Device)
+		if (d3d9Device && *d3d9Device)
 		{
 			(*d3d9Device)->SetPixelShader(nullptr);
 		}
