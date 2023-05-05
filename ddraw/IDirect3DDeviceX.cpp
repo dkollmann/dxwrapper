@@ -374,7 +374,10 @@ HRESULT m_IDirect3DDeviceX::SetTransform(D3DTRANSFORMSTATETYPE dtstTransformStat
 					if(Config.DdrawConvertHomogeneousToWorld)
 					{
 						// The Black & White matrix is an ortho camera, so create a perspective one matching the game
-						proj = DirectX::XMMatrixPerspectiveFovLH(90.0f * (3.14159265359f / 180.0f), width / height, 1.0f, 1000.0f);
+						const float fov = Config.DdrawConvertHomogeneousToWorldFOV;
+						const float nearplane = Config.DdrawConvertHomogeneousToWorldNearPlane;
+						const float farplane = Config.DdrawConvertHomogeneousToWorldFarPlane;
+						proj = DirectX::XMMatrixPerspectiveFovLH(fov * (3.14159265359f / 180.0f), width / height, nearplane, farplane);
 
 						_D3DMATRIX proj9;
 						DirectX::XMStoreFloat4x4((DirectX::XMFLOAT4X4*)&proj9, proj);
@@ -401,7 +404,7 @@ HRESULT m_IDirect3DDeviceX::SetTransform(D3DTRANSFORMSTATETYPE dtstTransformStat
 						// Compensate near plane
 						//view._41 = 0.0f;  // translate X
 						//view._42 = 0.0f;   // translate Y
-						view._43 = 1.0f;   // translate Z
+						view._43 = Config.DdrawConvertHomogeneousToWorldNearPlane;   // translate Z
 
 						// Combine both matrices
 						DirectX::XMMATRIX viewx = DirectX::XMLoadFloat4x4((DirectX::XMFLOAT4X4*)&view);
