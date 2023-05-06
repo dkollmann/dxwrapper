@@ -4895,8 +4895,6 @@ HRESULT m_IDirectDrawSurfaceX::CopySurface(m_IDirectDrawSurfaceX* pSourceSurface
 			}
 		}
 
-#define ISDXTEX(tex) (tex == D3DFMT_DXT1 || tex == D3DFMT_DXT2 || tex == D3DFMT_DXT3 || tex == D3DFMT_DXT4 || tex == D3DFMT_DXT5)
-
 		// Check source and destination format
 		bool FormatMismatch = false;
 		const bool FormatR5G6B5toX8R8G8B8 = (SrcFormat == D3DFMT_R5G6B5 && (DestFormat == D3DFMT_A8R8G8B8 || DestFormat == D3DFMT_X8R8G8B8));
@@ -5089,19 +5087,6 @@ HRESULT m_IDirectDrawSurfaceX::CopySurface(m_IDirectDrawSurfaceX* pSourceSurface
 				}
 				break;
 			}
-		}
-
-		// Decode DirectX texture
-		if(ISDXTEX(SrcFormat))
-		{
-			hr = D3DXLoadSurfaceFromSurface(GetD3D9Surface(), nullptr, pDestRect, pSourceSurface->GetD3D9Surface(), nullptr, pSourceRect, D3DX_FILTER_TRIANGLE, 0);
-
-			if (FAILED(hr))
-			{
-				LOG_LIMIT(100, __FUNCTION__ << " Error: could not decode source texture. " << (D3DERR)hr);
-			}
-
-			break;
 		}
 
 		// Get ratio
