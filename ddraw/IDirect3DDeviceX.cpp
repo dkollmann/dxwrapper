@@ -402,24 +402,26 @@ HRESULT m_IDirect3DDeviceX::SetTransform(D3DTRANSFORMSTATETYPE dtstTransformStat
 					if(Config.DdrawConvertHomogeneousToWorld)
 					{
 						// Compensate near plane
-						//view._41 = 0.0f;  // translate X
-						//view._42 = 0.0f;   // translate Y
+						view._41 = 0.0f;  // translate X
+						view._42 = 0.0f;   // translate Y
 						view._43 = Config.DdrawConvertHomogeneousToWorldNearPlane;   // translate Z
 
-						// Combine both matrices
-						DirectX::XMMATRIX viewx = DirectX::XMLoadFloat4x4((DirectX::XMFLOAT4X4*)&view);
+						// Store the original matrix so it can be restored
+						std::memcpy(&DdrawConvertHomogeneousToWorld_ViewMatrixOriginal, &view, sizeof(_D3DMATRIX));
 
+						// Determine the position and orientation of the camera
 						DirectX::XMMATRIX posAndOrientation;
 						CopyPositionAndOrientationFromViewMatrix(lpD3DMatrix, posAndOrientation);
 
+						// Combine the camera with the homogenous W compensation
+						DirectX::XMMATRIX viewx = DirectX::XMLoadFloat4x4((DirectX::XMFLOAT4X4*)&view);
 						DirectX::XMMATRIX view3d = DirectX::XMMatrixMultiply(posAndOrientation, viewx);
 
-						// Replace the view matrix with the combined one
-						DirectX::XMStoreFloat4x4((DirectX::XMFLOAT4X4*)&view, view3d);
+						// Store the 3D view matrix so it can be set later
+						DirectX::XMStoreFloat4x4((DirectX::XMFLOAT4X4*)&DdrawConvertHomogeneousToWorld_ViewMatrix, view3d);
 
 						// Store the view inverse matrix of the game, so we can transform the geometry with it
 						DirectX::XMMATRIX vp = DirectX::XMMatrixMultiply(view3d, proj);
-
 						DdrawConvertHomogeneousToWorld_ViewMatrixInverse = DirectX::XMMatrixInverse(nullptr, vp);
 					}
 
@@ -2294,7 +2296,7 @@ HRESULT m_IDirect3DDeviceX::DrawIndexedPrimitive(D3DPRIMITIVETYPE dptPrimitiveTy
 		}
 		else
 		{
-			UINT stride = GetVertexStride(dwVertexTypeDesc);
+			const UINT stride = GetVertexStride(dwVertexTypeDesc);
 
 			// Handle PositionT
 			if((dwVertexTypeDesc & D3DFVF_XYZRHW) != 0 && Config.DdrawConvertHomogeneousW)
@@ -2349,11 +2351,25 @@ HRESULT m_IDirect3DDeviceX::DrawIndexedPrimitive(D3DPRIMITIVETYPE dptPrimitiveTy
 						targetVertex += newstride;
 					}
 
-					// Update stride
-					stride = newstride;
+					// Set transform
+					(*d3d9Device)->SetTransform(D3DTS_VIEW, &DdrawConvertHomogeneousToWorld_ViewMatrix);
 
 					// Update the FVF
-					dwVertexTypeDesc = (dwVertexTypeDesc & ~D3DFVF_XYZRHW) | D3DFVF_XYZ;
+					const DWORD newVertexTypeDesc = (dwVertexTypeDesc & ~D3DFVF_XYZRHW) | D3DFVF_XYZ;
+
+					// Set fixed function vertex type
+					(*d3d9Device)->SetFVF(newVertexTypeDesc);
+
+					// Draw indexed primitive UP
+					hr = (*d3d9Device)->DrawIndexedPrimitiveUP(dptPrimitiveType, 0, dwVertexCount, GetNumberOfPrimitives(dptPrimitiveType, dwIndexCount), lpIndices, D3DFMT_INDEX16, lpVertices, newstride);
+
+					// Restore transform
+					(*d3d9Device)->SetTransform(D3DTS_VIEW, &DdrawConvertHomogeneousToWorld_ViewMatrixOriginal);
+
+					// Handle dwFlags
+					UnSetDrawFlags(rsClipping, rsLighting, rsExtents, newVertexTypeDesc, dwFlags, DirectXVersion);
+
+					return hr;
 				}
 			}
 

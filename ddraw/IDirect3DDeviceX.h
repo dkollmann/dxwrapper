@@ -25,7 +25,13 @@ private:
 	m_IDirect3DDevice3 *WrapperInterface3;
 	m_IDirect3DDevice7 *WrapperInterface7;
 
-	// Store the view matrix from the original game, as it represents the actual camera
+	// Store the view matrix used to transform the geometry on the gpu
+	_D3DMATRIX DdrawConvertHomogeneousToWorld_ViewMatrix;
+
+	// Store the original view matrix, so we can restore it
+	_D3DMATRIX DdrawConvertHomogeneousToWorld_ViewMatrixOriginal;
+
+	// Store the inverse view matrix to transform the geometry on the cpu
 	DirectX::XMMATRIX DdrawConvertHomogeneousToWorld_ViewMatrixInverse;
 
 	// Intermediate buffer for the geometry conversion
@@ -71,6 +77,14 @@ public:
 		{
 			LOG_LIMIT(3, "Creating interface " << __FUNCTION__ << " (" << this << ") v" << DirectXVersion);
 		}
+
+		ZeroMemory(&DdrawConvertHomogeneousToWorld_ViewMatrix, sizeof(_D3DMATRIX));
+		DdrawConvertHomogeneousToWorld_ViewMatrix._11 = 1.0f;
+		DdrawConvertHomogeneousToWorld_ViewMatrix._22 = 1.0f;
+		DdrawConvertHomogeneousToWorld_ViewMatrix._33 = 1.0f;
+		//DdrawConvertHomogeneousToWorld_ViewMatrix._44 = 1.0f;
+
+		std::memcpy(&DdrawConvertHomogeneousToWorld_ViewMatrixOriginal, &DdrawConvertHomogeneousToWorld_ViewMatrix, sizeof(_D3DMATRIX));
 
 		InitDevice(DirectXVersion);
 	}
