@@ -401,13 +401,23 @@ HRESULT m_IDirect3DDeviceX::SetTransform(D3DTRANSFORMSTATETYPE dtstTransformStat
 					// Generate the view matrix using the given position and orientation, and the matrix needed to compensate for the homogenous view
 					if(Config.DdrawConvertHomogeneousToWorld)
 					{
+						// Store the original matrix so it can be restored
+						std::memcpy(&DdrawConvertHomogeneousToWorld_ViewMatrixOriginal, &view, sizeof(_D3DMATRIX));
+
 						// Compensate near plane
 						view._41 = 0.0f;  // translate X
 						view._42 = 0.0f;   // translate Y
 						view._43 = Config.DdrawConvertHomogeneousToWorldNearPlane;   // translate Z
 
-						// Store the original matrix so it can be restored
-						std::memcpy(&DdrawConvertHomogeneousToWorld_ViewMatrixOriginal, &view, sizeof(_D3DMATRIX));
+						const float scale = 0.001f;
+						ZeroMemory(&view, sizeof(_D3DMATRIX));
+						view._11 = scale;
+						view._22 = scale;
+						view._33 = scale;
+						view._41 = -1.7f;  // translate X
+						view._42 = -0.5f;   // translate Y
+						view._43 = Config.DdrawConvertHomogeneousToWorldNearPlane;   // translate Z
+						view._44 = 1.0f;
 
 						// Determine the position and orientation of the camera
 						DirectX::XMMATRIX posAndOrientation;
@@ -415,13 +425,13 @@ HRESULT m_IDirect3DDeviceX::SetTransform(D3DTRANSFORMSTATETYPE dtstTransformStat
 
 						// Combine the camera with the homogenous W compensation
 						DirectX::XMMATRIX viewx = DirectX::XMLoadFloat4x4((DirectX::XMFLOAT4X4*)&view);
-						DirectX::XMMATRIX view3d = DirectX::XMMatrixMultiply(posAndOrientation, viewx);
+						DirectX::XMMATRIX view3d = viewx;  //DirectX::XMMatrixMultiply(posAndOrientation, viewx);
 
 						// Store the 3D view matrix so it can be set later
 						DirectX::XMStoreFloat4x4((DirectX::XMFLOAT4X4*)&DdrawConvertHomogeneousToWorld_ViewMatrix, view3d);
 
 						// Store the view inverse matrix of the game, so we can transform the geometry with it
-						DirectX::XMMATRIX vp = DirectX::XMMatrixMultiply(view3d, proj);
+						DirectX::XMMATRIX vp = DirectX::XMMatrixMultiply(proj, view3d);
 						DdrawConvertHomogeneousToWorld_ViewMatrixInverse = DirectX::XMMatrixInverse(nullptr, vp);
 					}
 
