@@ -379,13 +379,7 @@ HRESULT m_IDirect3DDeviceX::SetTransform(D3DTRANSFORMSTATETYPE dtstTransformStat
 						const float farplane = Config.DdrawConvertHomogeneousToWorldFarPlane;
 						proj = DirectX::XMMatrixPerspectiveFovLH(fov * (3.14159265359f / 180.0f), width / height, nearplane, farplane);
 
-						_D3DMATRIX proj9;
-						DirectX::XMStoreFloat4x4((DirectX::XMFLOAT4X4*)&proj9, proj);
-
-						if(FAILED((*d3d9Device)->SetTransform(D3DTS_PROJECTION, &proj9)))
-						{
-							Logging::Log() << __FUNCTION__ << " Error: Failed to set projection matrix!";
-						}
+						DirectX::XMStoreFloat4x4((DirectX::XMFLOAT4X4*)&DdrawConvertHomogeneousToWorld_ProjectionMatrix, proj);
 					}
 
 					// Replace the matrix with one that handles D3DFVF_XYZRHW geometry
@@ -415,7 +409,7 @@ HRESULT m_IDirect3DDeviceX::SetTransform(D3DTRANSFORMSTATETYPE dtstTransformStat
 						view._22 = scale;
 						view._33 = scale;
 						view._41 = -1.7f;  // translate X
-						view._42 = -0.5f;   // translate Y
+						view._42 = -0.5f;  // translate Y
 						view._43 = Config.DdrawConvertHomogeneousToWorldNearPlane;   // translate Z
 						view._44 = 1.0f;
 
@@ -2363,6 +2357,7 @@ HRESULT m_IDirect3DDeviceX::DrawIndexedPrimitive(D3DPRIMITIVETYPE dptPrimitiveTy
 
 					// Set transform
 					(*d3d9Device)->SetTransform(D3DTS_VIEW, &DdrawConvertHomogeneousToWorld_ViewMatrix);
+					(*d3d9Device)->SetTransform(D3DTS_PROJECTION, &DdrawConvertHomogeneousToWorld_ProjectionMatrix);
 
 					// Update the FVF
 					const DWORD newVertexTypeDesc = (dwVertexTypeDesc & ~D3DFVF_XYZRHW) | D3DFVF_XYZ;
@@ -2374,7 +2369,14 @@ HRESULT m_IDirect3DDeviceX::DrawIndexedPrimitive(D3DPRIMITIVETYPE dptPrimitiveTy
 					hr = (*d3d9Device)->DrawIndexedPrimitiveUP(dptPrimitiveType, 0, dwVertexCount, GetNumberOfPrimitives(dptPrimitiveType, dwIndexCount), lpIndices, D3DFMT_INDEX16, lpVertices, newstride);
 
 					// Restore transform
+					_D3DMATRIX identityMatrix;
+					ZeroMemory(&identityMatrix, sizeof(_D3DMATRIX));
+					identityMatrix._11 = 1.0f;
+					identityMatrix._22 = 1.0f;
+					identityMatrix._33 = 1.0f;
+
 					(*d3d9Device)->SetTransform(D3DTS_VIEW, &DdrawConvertHomogeneousToWorld_ViewMatrixOriginal);
+					(*d3d9Device)->SetTransform(D3DTS_PROJECTION, &identityMatrix);
 
 					// Handle dwFlags
 					UnSetDrawFlags(rsClipping, rsLighting, rsExtents, newVertexTypeDesc, dwFlags, DirectXVersion);
