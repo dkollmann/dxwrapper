@@ -403,14 +403,17 @@ HRESULT m_IDirect3DDeviceX::SetTransform(D3DTRANSFORMSTATETYPE dtstTransformStat
 						// Store the original matrix so it can be restored
 						std::memcpy(&DdrawConvertHomogeneousToWorld_ViewMatrixOriginal, &view, sizeof(_D3DMATRIX));
 
-						const float offsetX = 40.0f;
-						const float offsetY = 20.0f;
+						const float upvector = 1.0f;
+						const float offsetX = 40.0f * upvector;
+						const float offsetY = -20.0f * upvector;
 
 						DirectX::XMVECTOR position = DirectX::XMVectorSet(offsetX, offsetY, -40.0f, 0.0f);
 						DirectX::XMVECTOR target = DirectX::XMVectorSet(offsetX, offsetY, 0.0f, 0.0f);
-						DirectX::XMVECTOR up = DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+						DirectX::XMVECTOR up = DirectX::XMVectorSet(0.0f, upvector, 0.0f, 0.0f);
 
 						DirectX::XMMATRIX viewMatrix = DirectX::XMMatrixLookAtLH(position, target, up);
+						DirectX::XMMATRIX viewRotMatrix = DirectX::XMMatrixRotationAxis(DirectX::XMVectorSubtract(target, position), 3.14159265359f);
+						DirectX::XMMATRIX viewMatrixRotated = DirectX::XMMatrixMultiply(viewRotMatrix, viewMatrix);
 
 						// Determine the position and orientation of the camera
 						DirectX::XMMATRIX posAndOrientation;
@@ -418,7 +421,7 @@ HRESULT m_IDirect3DDeviceX::SetTransform(D3DTRANSFORMSTATETYPE dtstTransformStat
 
 						// Combine the camera with the homogenous W compensation
 						DirectX::XMMATRIX viewx = DirectX::XMLoadFloat4x4((DirectX::XMFLOAT4X4*)&view);
-						DirectX::XMMATRIX view3d = viewMatrix;  //DirectX::XMMatrixMultiply(viewx, posAndOrientation);
+						DirectX::XMMATRIX view3d = viewMatrixRotated;  //DirectX::XMMatrixMultiply(viewx, posAndOrientation);
 
 						// Store the 3D view matrix so it can be set later
 						DirectX::XMStoreFloat4x4((DirectX::XMFLOAT4X4*)&DdrawConvertHomogeneousToWorld_ViewMatrix, view3d);
@@ -2350,6 +2353,14 @@ HRESULT m_IDirect3DDeviceX::DrawIndexedPrimitive(D3DPRIMITIVETYPE dptPrimitiveTy
 					}
 
 					// Set transform
+					_D3DMATRIX worldMatrix;
+					ZeroMemory(&worldMatrix, sizeof(_D3DMATRIX));
+					worldMatrix._11 = 1.0f;
+					worldMatrix._22 = 1.0f;
+					worldMatrix._33 = 100000.0f;
+					worldMatrix._43 = -2500;
+
+					(*d3d9Device)->SetTransform(D3DTS_WORLD, &worldMatrix);
 					(*d3d9Device)->SetTransform(D3DTS_VIEW, &DdrawConvertHomogeneousToWorld_ViewMatrix);
 					(*d3d9Device)->SetTransform(D3DTS_PROJECTION, &DdrawConvertHomogeneousToWorld_ProjectionMatrix);
 
@@ -2369,6 +2380,7 @@ HRESULT m_IDirect3DDeviceX::DrawIndexedPrimitive(D3DPRIMITIVETYPE dptPrimitiveTy
 					identityMatrix._22 = 1.0f;
 					identityMatrix._33 = 1.0f;
 
+					(*d3d9Device)->SetTransform(D3DTS_WORLD, &identityMatrix);
 					(*d3d9Device)->SetTransform(D3DTS_VIEW, &DdrawConvertHomogeneousToWorld_ViewMatrixOriginal);
 					(*d3d9Device)->SetTransform(D3DTS_PROJECTION, &identityMatrix);
 
