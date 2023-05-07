@@ -301,15 +301,15 @@ HRESULT m_IDirect3DDeviceX::DeleteMatrix(D3DMATRIXHANDLE d3dMatHandle)
 void CopyPositionAndOrientationFromViewMatrix(const DirectX::XMMATRIX& src, DirectX::XMMATRIX& dest)
 {
 	// Extract orientation
-	DirectX::XMVECTOR fwd = DirectX::XMVectorNegate(src.r[2]);
+	DirectX::XMVECTOR fwd = src.r[2];
 	DirectX::XMVECTOR right = src.r[0];
-	DirectX::XMVECTOR up = src.r[1];
+	DirectX::XMVECTOR up = DirectX::XMVector3Cross(fwd, right);
 
 	// Extract position
 	DirectX::XMVECTOR pos = src.r[3];
 
 	// Build new transform
-	dest.r[0] = XMVectorSelect(DirectX::XMVectorNegate(fwd), right, DirectX::g_XMSelect1110);
+	dest.r[0] = right;
 	dest.r[1] = up;
 	dest.r[2] = fwd;
 	dest.r[3] = pos;
@@ -392,26 +392,25 @@ HRESULT m_IDirect3DDeviceX::SetTransform(D3DTRANSFORMSTATETYPE dtstTransformStat
 					view._42 = 1.0f;   // translate Y
 					view._44 = 1.0f;
 
+					if(FAILED((*d3d9Device)->SetTransform(D3DTS_VIEW, &view)))
+					{
+						Logging::Log() << __FUNCTION__ << " Error: Failed to set projection matrix!";
+					}
+
 					// Generate the view matrix using the given position and orientation, and the matrix needed to compensate for the homogenous view
 					if(Config.DdrawConvertHomogeneousToWorld)
 					{
 						// Store the original matrix so it can be restored
 						std::memcpy(&DdrawConvertHomogeneousToWorld_ViewMatrixOriginal, &view, sizeof(_D3DMATRIX));
 
-						// Compensate near plane
-						view._41 = 0.0f;  // translate X
-						view._42 = 0.0f;   // translate Y
-						view._43 = Config.DdrawConvertHomogeneousToWorldNearPlane;   // translate Z
+						const float offsetX = 40.0f;
+						const float offsetY = 20.0f;
 
-						const float scale = 0.001f;
-						ZeroMemory(&view, sizeof(_D3DMATRIX));
-						view._11 = scale;
-						view._22 = scale;
-						view._33 = scale;
-						view._41 = -1.7f;  // translate X
-						view._42 = -0.5f;  // translate Y
-						view._43 = Config.DdrawConvertHomogeneousToWorldNearPlane;   // translate Z
-						view._44 = 1.0f;
+						DirectX::XMVECTOR position = DirectX::XMVectorSet(offsetX, offsetY, -40.0f, 0.0f);
+						DirectX::XMVECTOR target = DirectX::XMVectorSet(offsetX, offsetY, 0.0f, 0.0f);
+						DirectX::XMVECTOR up = DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+
+						DirectX::XMMATRIX viewMatrix = DirectX::XMMatrixLookAtLH(position, target, up);
 
 						// Determine the position and orientation of the camera
 						DirectX::XMMATRIX posAndOrientation;
@@ -419,7 +418,7 @@ HRESULT m_IDirect3DDeviceX::SetTransform(D3DTRANSFORMSTATETYPE dtstTransformStat
 
 						// Combine the camera with the homogenous W compensation
 						DirectX::XMMATRIX viewx = DirectX::XMLoadFloat4x4((DirectX::XMFLOAT4X4*)&view);
-						DirectX::XMMATRIX view3d = viewx;  //DirectX::XMMatrixMultiply(posAndOrientation, viewx);
+						DirectX::XMMATRIX view3d = viewMatrix;  //DirectX::XMMatrixMultiply(viewx, posAndOrientation);
 
 						// Store the 3D view matrix so it can be set later
 						DirectX::XMStoreFloat4x4((DirectX::XMFLOAT4X4*)&DdrawConvertHomogeneousToWorld_ViewMatrix, view3d);
@@ -427,11 +426,6 @@ HRESULT m_IDirect3DDeviceX::SetTransform(D3DTRANSFORMSTATETYPE dtstTransformStat
 						// Store the view inverse matrix of the game, so we can transform the geometry with it
 						DirectX::XMMATRIX vp = DirectX::XMMatrixMultiply(proj, view3d);
 						DdrawConvertHomogeneousToWorld_ViewMatrixInverse = DirectX::XMMatrixInverse(nullptr, vp);
-					}
-
-					if(FAILED((*d3d9Device)->SetTransform(D3DTS_VIEW, &view)))
-					{
-						Logging::Log() << __FUNCTION__ << " Error: Failed to set projection matrix!";
 					}
 
 					return D3D_OK;
