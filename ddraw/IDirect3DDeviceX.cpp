@@ -432,14 +432,10 @@ HRESULT m_IDirect3DDeviceX::SetTransform(D3DTRANSFORMSTATETYPE dtstTransformStat
 
 						// Roatete the image around on, so it is correct
 						DirectX::XMMATRIX viewRotMatrix = DirectX::XMMatrixRotationAxis(dir, 3.14159265359f);
-						DirectX::XMMATRIX viewMatrixRotated = DirectX::XMMatrixMultiply(viewScalingMatrix, viewMatrix);
-
-						// Combine the camera with the homogenous W compensation
-						DirectX::XMMATRIX viewx = DirectX::XMLoadFloat4x4((DirectX::XMFLOAT4X4*)&view);
-						DirectX::XMMATRIX viewWithHomogenous = (!USE_GAME_CAMERA) ? viewMatrixRotated : DirectX::XMMatrixMultiply(viewx, viewMatrixRotated);
+						DirectX::XMMATRIX viewMatrixAdjusted = DirectX::XMMatrixMultiply(viewScalingMatrix, viewMatrix);
 
 						// Store the 3D view matrix so it can be set later
-						DirectX::XMStoreFloat4x4((DirectX::XMFLOAT4X4*)&DdrawConvertHomogeneousToWorld_ViewMatrix, viewWithHomogenous);
+						DirectX::XMStoreFloat4x4((DirectX::XMFLOAT4X4*)&DdrawConvertHomogeneousToWorld_ViewMatrix, viewMatrixAdjusted);
 
 						// Store the view inverse matrix of the game, so we can transform the geometry with it
 						DirectX::XMMATRIX vp = DirectX::XMMatrixMultiply(proj, viewMatrix);
