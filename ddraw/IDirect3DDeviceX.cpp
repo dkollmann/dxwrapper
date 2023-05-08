@@ -361,6 +361,13 @@ HRESULT m_IDirect3DDeviceX::SetTransform(D3DTRANSFORMSTATETYPE dtstTransformStat
 
 		if(Config.DdrawConvertHomogeneousW)
 		{
+			// Store the matrix so we know how the game transforms its geometry. Otherwise discard it.
+			if(dtstTransformStateType == D3DTS_PROJECTION && Config.DdrawConvertHomogeneousToWorld)
+			{
+				std::memcpy(&DdrawConvertHomogeneousToWorld_GameProjectionMatrix, lpD3DMatrix, sizeof(_D3DMATRIX));
+				return D3D_OK;
+			}
+
 			if(dtstTransformStateType == D3DTS_VIEW)
 			{
 				D3DVIEWPORT9 Viewport9;
@@ -368,6 +375,7 @@ HRESULT m_IDirect3DDeviceX::SetTransform(D3DTRANSFORMSTATETYPE dtstTransformStat
 				{
 					const float width = (float)Viewport9.Width;
 					const float height = (float)Viewport9.Height;
+					const float ratio = width / height;
 
 					// Replace the matrix with one that handles D3DFVF_XYZRHW geometry
 					_D3DMATRIX view;
@@ -405,7 +413,7 @@ HRESULT m_IDirect3DDeviceX::SetTransform(D3DTRANSFORMSTATETYPE dtstTransformStat
 						const float fov = Config.DdrawConvertHomogeneousToWorldFOV;
 						const float nearplane = Config.DdrawConvertHomogeneousToWorldNearPlane;
 						const float farplane = Config.DdrawConvertHomogeneousToWorldFarPlane;
-						DirectX::XMMATRIX proj = DirectX::XMMatrixPerspectiveFovLH(fov * (3.14159265359f / 180.0f), width / height, nearplane, farplane);
+						DirectX::XMMATRIX proj = DirectX::XMMatrixPerspectiveFovLH(fov * (3.14159265359f / 180.0f), ratio, nearplane, farplane);
 
 						DirectX::XMStoreFloat4x4((DirectX::XMFLOAT4X4*)&DdrawConvertHomogeneousToWorld_ProjectionMatrix, proj);
 
@@ -415,11 +423,15 @@ HRESULT m_IDirect3DDeviceX::SetTransform(D3DTRANSFORMSTATETYPE dtstTransformStat
 #if USE_GAME_CAMERA
 						DirectX::XMMATRIX viewMatrix = DirectX::XMMatrixLookToLH(position, dir, up);
 
-						DirectX::XMMATRIX viewRotMatrix = DirectX::XMMatrixRotationAxis(dir, 3.14159265359f);
-						DirectX::XMMATRIX finalCameraMatrix = viewMatrix;  //DirectX::XMMatrixMultiply(viewRotMatrix, viewMatrix);
+						DirectX::XMMATRIX viewScalingMatrix = DirectX::XMMatrixIdentity();
 #else
-						const float offsetX = 40.0f * upvector;
-						const float offsetY = -20.0f * upvector;
+						const float originalScaleX = DdrawConvertHomogeneousToWorld_GameProjectionMatrix._11;
+						const float originalScaleY = DdrawConvertHomogeneousToWorld_GameProjectionMatrix._22;
+						const float scale = 1.5f;
+						DirectX::XMMATRIX viewScalingMatrix = DirectX::XMMatrixScaling(scale /** originalScaleX*/, -scale * ratio /** originalScaleY*/, scale);
+
+						const float offsetX = 66.0f * upvector;
+						const float offsetY = -33.0f * upvector;
 
 						DirectX::XMVECTOR position = DirectX::XMVectorSet(offsetX, offsetY, -40.0f, 0.0f);
 						DirectX::XMVECTOR target = DirectX::XMVectorSet(offsetX, offsetY, 0.0f, 0.0f);
@@ -430,8 +442,7 @@ HRESULT m_IDirect3DDeviceX::SetTransform(D3DTRANSFORMSTATETYPE dtstTransformStat
 
 						// Roatete the image around on, so it is correct
 						DirectX::XMMATRIX viewRotMatrix = DirectX::XMMatrixRotationAxis(dir, 3.14159265359f);
-						DirectX::XMMATRIX viewFlipMatrix = DirectX::XMMatrixScaling(1.0f, -1.0f, 1.0f);
-						DirectX::XMMATRIX viewMatrixRotated = DirectX::XMMatrixMultiply(viewFlipMatrix, viewMatrix);
+						DirectX::XMMATRIX viewMatrixRotated = DirectX::XMMatrixMultiply(viewScalingMatrix, viewMatrix);
 
 						// Combine the camera with the homogenous W compensation
 						DirectX::XMMATRIX viewx = DirectX::XMLoadFloat4x4((DirectX::XMFLOAT4X4*)&view);
