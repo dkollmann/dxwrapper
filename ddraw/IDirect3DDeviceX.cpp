@@ -419,27 +419,29 @@ HRESULT m_IDirect3DDeviceX::SetTransform(D3DTRANSFORMSTATETYPE dtstTransformStat
 						DirectX::XMMATRIX finalCameraMatrix = viewMatrix;  //DirectX::XMMatrixMultiply(viewRotMatrix, viewMatrix);
 #else
 						const float offsetX = 40.0f * upvector;
-						const float offsetY = 20.0f * upvector;
+						const float offsetY = -20.0f * upvector;
 
 						DirectX::XMVECTOR position = DirectX::XMVectorSet(offsetX, offsetY, -40.0f, 0.0f);
 						DirectX::XMVECTOR target = DirectX::XMVectorSet(offsetX, offsetY, 0.0f, 0.0f);
 						DirectX::XMVECTOR dir = DirectX::XMVectorSubtract(target, position);
 
 						DirectX::XMMATRIX viewMatrix = DirectX::XMMatrixLookAtLH(position, target, up);
-
-						DirectX::XMMATRIX viewRotMatrix = DirectX::XMMatrixRotationAxis(dir, 3.14159265359f);
-						DirectX::XMMATRIX finalCameraMatrix = viewMatrix;  //DirectX::XMMatrixMultiply(viewRotMatrix, viewMatrix);
 #endif
+
+						// Roatete the image around on, so it is correct
+						DirectX::XMMATRIX viewRotMatrix = DirectX::XMMatrixRotationAxis(dir, 3.14159265359f);
+						DirectX::XMMATRIX viewFlipMatrix = DirectX::XMMatrixScaling(1.0f, -1.0f, 1.0f);
+						DirectX::XMMATRIX viewMatrixRotated = DirectX::XMMatrixMultiply(viewFlipMatrix, viewMatrix);
 
 						// Combine the camera with the homogenous W compensation
 						DirectX::XMMATRIX viewx = DirectX::XMLoadFloat4x4((DirectX::XMFLOAT4X4*)&view);
-						DirectX::XMMATRIX viewWithHomogenous = (!USE_GAME_CAMERA) ? finalCameraMatrix : DirectX::XMMatrixMultiply(viewx, finalCameraMatrix);
+						DirectX::XMMATRIX viewWithHomogenous = (!USE_GAME_CAMERA) ? viewMatrixRotated : DirectX::XMMatrixMultiply(viewx, viewMatrixRotated);
 
 						// Store the 3D view matrix so it can be set later
 						DirectX::XMStoreFloat4x4((DirectX::XMFLOAT4X4*)&DdrawConvertHomogeneousToWorld_ViewMatrix, viewWithHomogenous);
 
 						// Store the view inverse matrix of the game, so we can transform the geometry with it
-						DirectX::XMMATRIX vp = DirectX::XMMatrixMultiply(proj, finalCameraMatrix);
+						DirectX::XMMATRIX vp = DirectX::XMMatrixMultiply(proj, viewMatrix);
 						DdrawConvertHomogeneousToWorld_ViewMatrixInverse = DirectX::XMMatrixInverse(nullptr, vp);
 					}
 				}
@@ -2346,11 +2348,11 @@ HRESULT m_IDirect3DDeviceX::DrawIndexedPrimitive(D3DPRIMITIVETYPE dptPrimitiveTy
 						float *srcpos = (float*) sourceVertex;
 						float *trgtpos = (float*) targetVertex;
 
-						DirectX::XMVECTOR xpos = DirectX::XMVectorSet(srcpos[0], srcpos[1], srcpos[2], 1.0f /*srcpos[3]*/);
+						DirectX::XMVECTOR xpos = DirectX::XMVectorSet(srcpos[0], srcpos[1], srcpos[2], srcpos[3]);
 
 						DirectX::XMVECTOR xpos_global = DirectX::XMVector3TransformCoord(xpos, DdrawConvertHomogeneousToWorld_ViewMatrixInverse);
 
-						//xpos_global = DirectX::XMVectorDivide(xpos_global, DirectX::XMVectorSplatW(xpos_global));
+						xpos_global = DirectX::XMVectorDivide(xpos_global, DirectX::XMVectorSplatW(xpos_global));
 
 						trgtpos[0] = DirectX::XMVectorGetX(xpos_global);
 						trgtpos[1] = DirectX::XMVectorGetY(xpos_global);
@@ -2365,14 +2367,6 @@ HRESULT m_IDirect3DDeviceX::DrawIndexedPrimitive(D3DPRIMITIVETYPE dptPrimitiveTy
 					}
 
 					// Set transform
-					_D3DMATRIX worldMatrix;
-					ZeroMemory(&worldMatrix, sizeof(_D3DMATRIX));
-					worldMatrix._11 = 1.0f;
-					worldMatrix._22 = 1.0f;
-					worldMatrix._33 = 1000000.0f;
-					worldMatrix._43 = worldMatrix._33 / -40.0f; //-2500;
-
-					//(*d3d9Device)->SetTransform(D3DTS_WORLD, &worldMatrix);
 					(*d3d9Device)->SetTransform(D3DTS_VIEW, &DdrawConvertHomogeneousToWorld_ViewMatrix);
 					(*d3d9Device)->SetTransform(D3DTS_PROJECTION, &DdrawConvertHomogeneousToWorld_ProjectionMatrix);
 
@@ -2392,7 +2386,6 @@ HRESULT m_IDirect3DDeviceX::DrawIndexedPrimitive(D3DPRIMITIVETYPE dptPrimitiveTy
 					identityMatrix._22 = 1.0f;
 					identityMatrix._33 = 1.0f;
 
-					//(*d3d9Device)->SetTransform(D3DTS_WORLD, &identityMatrix);
 					(*d3d9Device)->SetTransform(D3DTS_VIEW, &DdrawConvertHomogeneousToWorld_ViewMatrixOriginal);
 					(*d3d9Device)->SetTransform(D3DTS_PROJECTION, &identityMatrix);
 
