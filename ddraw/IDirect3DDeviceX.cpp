@@ -417,11 +417,11 @@ HRESULT m_IDirect3DDeviceX::SetTransform(D3DTRANSFORMSTATETYPE dtstTransformStat
 
 						DirectX::XMMATRIX viewScalingMatrix = DirectX::XMMatrixIdentity();
 #else
-						const float scale = 1.5f;
-						DirectX::XMMATRIX viewScalingMatrix = DirectX::XMMatrixScaling(scale, -scale * ratio, scale);
+						const float scale = 1.7f;
+						DirectX::XMMATRIX viewScalingMatrix = DirectX::XMMatrixScaling(scale, -scale * ratio, 1.0f);
 
-						const float offsetX = 66.0f;
-						const float offsetY = -33.0f;
+						const float offsetX = 76.9f;
+						const float offsetY = -37.5f;
 
 						DirectX::XMVECTOR position = DirectX::XMVectorSet(offsetX, offsetY, -40.0f, 0.0f);
 						DirectX::XMVECTOR target = DirectX::XMVectorSet(offsetX, offsetY, 0.0f, 0.0f);
