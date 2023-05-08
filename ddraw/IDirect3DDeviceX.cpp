@@ -361,13 +361,6 @@ HRESULT m_IDirect3DDeviceX::SetTransform(D3DTRANSFORMSTATETYPE dtstTransformStat
 
 		if(Config.DdrawConvertHomogeneousW)
 		{
-			// Store the matrix so we know how the game transforms its geometry. Otherwise discard it.
-			if(dtstTransformStateType == D3DTS_PROJECTION && Config.DdrawConvertHomogeneousToWorld)
-			{
-				std::memcpy(&DdrawConvertHomogeneousToWorld_GameProjectionMatrix, lpD3DMatrix, sizeof(_D3DMATRIX));
-				return D3D_OK;
-			}
-
 			if(dtstTransformStateType == D3DTS_VIEW)
 			{
 				D3DVIEWPORT9 Viewport9;
@@ -417,21 +410,18 @@ HRESULT m_IDirect3DDeviceX::SetTransform(D3DTRANSFORMSTATETYPE dtstTransformStat
 
 						DirectX::XMStoreFloat4x4((DirectX::XMFLOAT4X4*)&DdrawConvertHomogeneousToWorld_ProjectionMatrix, proj);
 
-						const float upvector = 1.0f;
-						DirectX::XMVECTOR up = DirectX::XMVectorSet(0.0f, upvector, 0.0f, 0.0f);
+						DirectX::XMVECTOR up = DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
 
 #if USE_GAME_CAMERA
 						DirectX::XMMATRIX viewMatrix = DirectX::XMMatrixLookToLH(position, dir, up);
 
 						DirectX::XMMATRIX viewScalingMatrix = DirectX::XMMatrixIdentity();
 #else
-						const float originalScaleX = DdrawConvertHomogeneousToWorld_GameProjectionMatrix._11;
-						const float originalScaleY = DdrawConvertHomogeneousToWorld_GameProjectionMatrix._22;
 						const float scale = 1.5f;
-						DirectX::XMMATRIX viewScalingMatrix = DirectX::XMMatrixScaling(scale /** originalScaleX*/, -scale * ratio /** originalScaleY*/, scale);
+						DirectX::XMMATRIX viewScalingMatrix = DirectX::XMMatrixScaling(scale, -scale * ratio, scale);
 
-						const float offsetX = 66.0f * upvector;
-						const float offsetY = -33.0f * upvector;
+						const float offsetX = 66.0f;
+						const float offsetY = -33.0f;
 
 						DirectX::XMVECTOR position = DirectX::XMVectorSet(offsetX, offsetY, -40.0f, 0.0f);
 						DirectX::XMVECTOR target = DirectX::XMVectorSet(offsetX, offsetY, 0.0f, 0.0f);

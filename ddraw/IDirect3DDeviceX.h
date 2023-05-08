@@ -25,9 +25,6 @@ private:
 	m_IDirect3DDevice3 *WrapperInterface3;
 	m_IDirect3DDevice7 *WrapperInterface7;
 
-	// Store the projection matrix the game uses
-	_D3DMATRIX DdrawConvertHomogeneousToWorld_GameProjectionMatrix;
-
 	// Store the projection matrix used to transform the geometry on the gpu
 	_D3DMATRIX DdrawConvertHomogeneousToWorld_ProjectionMatrix;
 
@@ -90,7 +87,6 @@ public:
 		DdrawConvertHomogeneousToWorld_ViewMatrix._33 = 1.0f;
 		DdrawConvertHomogeneousToWorld_ViewMatrix._44 = 1.0f;
 
-		std::memcpy(&DdrawConvertHomogeneousToWorld_GameProjectionMatrix, &DdrawConvertHomogeneousToWorld_ViewMatrix, sizeof(_D3DMATRIX));
 		std::memcpy(&DdrawConvertHomogeneousToWorld_ProjectionMatrix, &DdrawConvertHomogeneousToWorld_ViewMatrix, sizeof(_D3DMATRIX));
 		std::memcpy(&DdrawConvertHomogeneousToWorld_ViewMatrixOriginal, &DdrawConvertHomogeneousToWorld_ViewMatrix, sizeof(_D3DMATRIX));
 
