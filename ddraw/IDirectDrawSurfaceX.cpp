@@ -2052,9 +2052,10 @@ HRESULT m_IDirectDrawSurfaceX::Lock2(LPRECT lpDestRect, LPDDSURFACEDESC2 lpDDSur
 		if (!(lpDDSurfaceDesc2->dwFlags & DDSD_LPSURFACE))
 		{
 			lpDDSurfaceDesc2->lpSurface = LockedRect.pBits;
+			lpDDSurfaceDesc2->dwFlags |= DDSD_LPSURFACE;
 		}
 		lpDDSurfaceDesc2->lPitch = LockedRect.Pitch * (ISDXTEX(surfaceFormat) ? 64 : 1);
-		lpDDSurfaceDesc2->dwFlags |= DDSD_PITCH | DDSD_LPSURFACE;
+		lpDDSurfaceDesc2->dwFlags |= DDSD_PITCH;
 
 		// Fix misaligned bytes
 		if (Config.DdrawFixByteAlignment)
@@ -4696,29 +4697,6 @@ HRESULT m_IDirectDrawSurfaceX::ColorFill(RECT* pRect, D3DCOLOR dwFillColor)
 	return DD_OK;
 }
 
-// Save a surface for debugging
-HRESULT m_IDirectDrawSurfaceX::SaveSurfaceToFile(const char *filename, D3DXIMAGE_FILEFORMAT format)
-{
-	LPD3DXBUFFER pDestBuf = nullptr;
-	HRESULT hr = D3DXSaveSurfaceToFileInMemory(&pDestBuf, format, GetD3D9Surface(), nullptr, nullptr);
-
-	if (SUCCEEDED(hr))
-	{
-		// Save the buffer to a file
-		std::ofstream outFile(filename, std::ios::binary | std::ios::out);
-		if (outFile.is_open())
-		{
-			outFile.write((const char*)pDestBuf->GetBufferPointer(), pDestBuf->GetBufferSize());
-			outFile.close();
-		}
-
-		// Release the buffer
-		pDestBuf->Release();
-	}
-
-	return hr;
-}
-
 // Save DXT data as a DDS file
 HRESULT m_IDirectDrawSurfaceX::SaveDXTDataToDDS(const void *data, size_t dataSize, const char *filename, int dxtVersion) const
 {
@@ -4776,6 +4754,29 @@ HRESULT m_IDirectDrawSurfaceX::SaveDXTDataToDDS(const void *data, size_t dataSiz
 	}
 
 	return DDERR_GENERIC;
+}
+
+// Save a surface for debugging
+HRESULT m_IDirectDrawSurfaceX::SaveSurfaceToFile(const char *filename, D3DXIMAGE_FILEFORMAT format)
+{
+	LPD3DXBUFFER pDestBuf = nullptr;
+	HRESULT hr = D3DXSaveSurfaceToFileInMemory(&pDestBuf, format, GetD3D9Surface(), nullptr, nullptr);
+
+	if (SUCCEEDED(hr))
+	{
+		// Save the buffer to a file
+		std::ofstream outFile(filename, std::ios::binary | std::ios::out);
+		if (outFile.is_open())
+		{
+			outFile.write((const char*)pDestBuf->GetBufferPointer(), pDestBuf->GetBufferSize());
+			outFile.close();
+		}
+
+		// Release the buffer
+		pDestBuf->Release();
+	}
+
+	return hr;
 }
 
 // Copy surface
