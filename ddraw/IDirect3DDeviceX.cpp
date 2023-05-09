@@ -1553,8 +1553,6 @@ HRESULT m_IDirect3DDeviceX::BeginScene()
 {
 	Logging::LogDebug() << __FUNCTION__ << " (" << this << ")";
 
-	HRESULT hr = DDERR_GENERIC;
-
 	if (Config.Dd7to9)
 	{
 		// Check for device interface
@@ -1592,46 +1590,12 @@ HRESULT m_IDirect3DDeviceX::BeginScene()
 	default:
 		return GetProxyInterfaceV7()->BeginScene();
 	}
-
-#if WITH_IMGUI
-	if(SUCCEEDED(hr) || Config.Dd7to9)
-	{
-		ImGui_ImplDX9_NewFrame();
-		ImGui_ImplWin32_NewFrame();
-		ImGui::NewFrame();
-	}
-#endif
-
-	return hr;
 }
 
 HRESULT m_IDirect3DDeviceX::EndScene()
 {
 	Logging::LogDebug() << __FUNCTION__ << " (" << this << ")";
-
-#if WITH_IMGUI
-	static bool ShowDebugUI = false;
-	if (ImGui::IsKeyDown(ImGui::GetKeyIndex(ImGuiKey_LeftAlt)) &&
-		ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_D), false))
-	{
-		ShowDebugUI = !ShowDebugUI;
-	}
-
-	if(ShowDebugUI)
-	{
-		ImGui::Begin("Hello, world!");
-		ImGui::Text("This is some text.");
-		ImGui::End();
-
-		ImGui::Render();
-		ImGui_ImplDX9_RenderDrawData(ImGui::GetDrawData());
-	}
-	else
-	{
-		ImGui::EndFrame();
-	}
-#endif
-
+	
 	if (Config.Dd7to9)
 	{
 		// Check for device interface
