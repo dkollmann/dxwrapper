@@ -17,6 +17,7 @@
 #include "ddraw.h"
 #include <d3dhal.h>
 #include <DirectXMath.h>
+#include <sstream>
 
 #define WITH_IMGUI 1
 
@@ -404,6 +405,9 @@ HRESULT m_IDirect3DDeviceX::SetTransform(D3DTRANSFORMSTATETYPE dtstTransformStat
 					view._41 = -1.0f;  // translate X
 					view._42 = 1.0f;   // translate Y
 					view._44 = 1.0f;
+
+					DdrawConvertHomogeneousToWorld_OriginalCamPos = { lpD3DMatrix->_31, lpD3DMatrix->_32, lpD3DMatrix->_33 };
+					DdrawConvertHomogeneousToWorld_OriginalCamDir = { lpD3DMatrix->_21, lpD3DMatrix->_22, lpD3DMatrix->_23 };
 
 					if(!Config.DdrawConvertHomogeneousToWorld)
 					{
@@ -1614,8 +1618,12 @@ HRESULT m_IDirect3DDeviceX::EndScene()
 
 		if (ShowDebugUI)
 		{
-			ImGui::Begin("Hello, world!");
-			ImGui::Text("This is some text.");
+			std::stringstream ss;
+			ss <<   "Position: " << DdrawConvertHomogeneousToWorld_OriginalCamPos.x << " / " << DdrawConvertHomogeneousToWorld_OriginalCamPos.y << " / " << DdrawConvertHomogeneousToWorld_OriginalCamPos.z;
+			ss << "\nDirection: " << DdrawConvertHomogeneousToWorld_OriginalCamDir.x << " / " << DdrawConvertHomogeneousToWorld_OriginalCamDir.y << " / " << DdrawConvertHomogeneousToWorld_OriginalCamDir.z;
+
+			ImGui::Begin("Debug Window");
+			ImGui::Text(ss.str().c_str());
 			ImGui::End();
 
 			ImGui::Render();
