@@ -30,7 +30,7 @@ private:
 
 	// Store debug matrix information
 	D3DMATRIX worldMatrix, viewMatrix, projectionMatrix;
-
+  
 	// Store debug light information
 #pragma pack(push, 4)
 
