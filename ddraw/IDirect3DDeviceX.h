@@ -28,40 +28,6 @@ private:
 	// SetTexture array
 	LPDIRECTDRAWSURFACE7 AttachedTexture[8] = {};
 
-	// Store debug matrix information
-	D3DMATRIX worldMatrix, viewMatrix, projectionMatrix;
-  
-	// Store debug light information
-#pragma pack(push, 4)
-
-	struct LightDebugInfoColor
-	{
-		uint8_t r = 0, g = 0, b = 0, a = 0;
-
-		LightDebugInfoColor(const D3DCOLORVALUE &color) :
-			r((uint8_t)(color.r * 255.0f)),
-			g((uint8_t)(color.g * 255.0f)),
-			b((uint8_t)(color.b * 255.0f)),
-			a((uint8_t)(color.a * 255.0f))
-		{
-		}
-	};
-
-	struct LightDebugInfo
-	{
-		char index = -1;
-		char type = 0;
-		D3DVECTOR position { 0.0f, 0.0f, 0.0f };
-		D3DVECTOR direction { 0.0f, 0.0f, 0.0f };
-		LightDebugInfoColor diffuseColor;
-		LightDebugInfoColor specularColor;
-		LightDebugInfoColor ambientColor;
-	};
-
-#pragma pack(pop)
-
-	std::vector<LightDebugInfo> LightDebugInfos;
-
 	// Store the projection matrix used to transform the geometry on the gpu
 	_D3DMATRIX DdrawConvertHomogeneousToWorld_ProjectionMatrix;
 
@@ -130,10 +96,6 @@ public:
 		{
 			LOG_LIMIT(3, "Creating interface " << __FUNCTION__ << " (" << this << ") v" << DirectXVersion);
 		}
-
-		std::memset(&worldMatrix, 0, sizeof(D3DMATRIX));
-		std::memset(&viewMatrix, 0, sizeof(D3DMATRIX));
-		std::memset(&projectionMatrix, 0, sizeof(D3DMATRIX));
 
 		ZeroMemory(&DdrawConvertHomogeneousToWorld_ViewMatrix, sizeof(_D3DMATRIX));
 		DdrawConvertHomogeneousToWorld_ViewMatrix._11 = 1.0f;
