@@ -401,17 +401,12 @@ HRESULT m_IDirect3DDeviceX::SetTransform(D3DTRANSFORMSTATETYPE dtstTransformStat
 					else
 					{
 						// Generate the view matrix using the given position and orientation, and the matrix needed to compensate for the homogenous view
-#define USE_GAME_CAMERA 0
+#define USE_GAME_CAMERA 1
 
 #if USE_GAME_CAMERA
 						// To reconstruct the 3D world, we need to know where the camera is and where it is looking
 						DirectX::XMVECTOR position = DirectX::XMVectorSet(lpD3DMatrix->_41, lpD3DMatrix->_42, lpD3DMatrix->_43, lpD3DMatrix->_44);
 						DirectX::XMVECTOR direction = DirectX::XMVectorSet(lpD3DMatrix->_31, lpD3DMatrix->_32, lpD3DMatrix->_33, lpD3DMatrix->_34);
-
-						DirectX::XMVECTOR flipy = DirectX::XMVectorSet(1.0f, -1.0f, 1.0f, 1.0f);
-
-						//position = DirectX::XMVectorMultiply(position, flipy);
-						//dir = DirectX::XMVectorMultiply(dir, flipy);
 #endif
 						// Override the original matrix
 						std::memcpy(lpD3DMatrix, &view, sizeof(_D3DMATRIX));
@@ -431,29 +426,17 @@ HRESULT m_IDirect3DDeviceX::SetTransform(D3DTRANSFORMSTATETYPE dtstTransformStat
 
 #if USE_GAME_CAMERA
 						DirectX::XMMATRIX viewMatrix = DirectX::XMMatrixLookToLH(position, direction, up);
-
-						DirectX::XMMATRIX viewScalingMatrix = DirectX::XMMatrixIdentity();  //DirectX::XMMatrixScaling(1.0f, -1.0f, 1.0f);
 #else
-						const float scale = 3.0f;
-						DirectX::XMMATRIX viewScalingMatrix = DirectX::XMMatrixIdentity();  //DirectX::XMMatrixScaling(scale / ratio, -scale, 1.0f);
-
-						const float offsetX = 0.0f;  //76.7f;
-						const float offsetY = 0.0f;  //-37.2f;
 						const float cameradir = -1.0f;
 
-						DirectX::XMVECTOR pos = DirectX::XMVectorSet(offsetX, offsetY, 40.0f * -cameradir, 0.0f);
-						DirectX::XMVECTOR target = DirectX::XMVectorSet(offsetX, offsetY, 0.0f, 0.0f);
-						DirectX::XMVECTOR direction = DirectX::XMVectorSet(0.0f, 0.0f, cameradir, 0.0f); //DirectX::XMVectorSubtract(target, pos);
+						DirectX::XMVECTOR pos = DirectX::XMVectorSet(0.0f, 0.0f, 40.0f * -cameradir, 0.0f);
+						DirectX::XMVECTOR direction = DirectX::XMVectorSet(0.0f, 0.0f, cameradir, 0.0f);
 
 						DirectX::XMMATRIX viewMatrix = DirectX::XMMatrixLookToLH(pos, direction, up);
 #endif
 
-						// Roatete the image around on, so it is correct
-						DirectX::XMMATRIX viewRotMatrix = DirectX::XMMatrixRotationAxis(direction, 3.14159265359f);
-						DirectX::XMMATRIX viewMatrixAdjusted = DirectX::XMMatrixMultiply(viewScalingMatrix, viewMatrix);
-
 						// Store the 3D view matrix so it can be set later
-						DirectX::XMStoreFloat4x4((DirectX::XMFLOAT4X4*)&RenderData.DdrawConvertHomogeneousToWorld_ViewMatrix, viewMatrixAdjusted);
+						DirectX::XMStoreFloat4x4((DirectX::XMFLOAT4X4*)&RenderData.DdrawConvertHomogeneousToWorld_ViewMatrix, viewMatrix);
 
 						// Store the view inverse matrix of the game, so we can transform the geometry with it
 						DirectX::XMMATRIX toViewSpace = DirectX::XMLoadFloat4x4((DirectX::XMFLOAT4X4*)lpD3DMatrix);
