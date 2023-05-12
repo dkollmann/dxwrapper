@@ -401,7 +401,7 @@ HRESULT m_IDirect3DDeviceX::SetTransform(D3DTRANSFORMSTATETYPE dtstTransformStat
 					else
 					{
 						// Generate the view matrix using the given position and orientation, and the matrix needed to compensate for the homogenous view
-#define USE_GAME_CAMERA 1
+#define USE_GAME_CAMERA 0
 
 #if USE_GAME_CAMERA
 						// To reconstruct the 3D world, we need to know where the camera is and where it is looking
@@ -435,16 +435,17 @@ HRESULT m_IDirect3DDeviceX::SetTransform(D3DTRANSFORMSTATETYPE dtstTransformStat
 						DirectX::XMMATRIX viewScalingMatrix = DirectX::XMMatrixIdentity();  //DirectX::XMMatrixScaling(1.0f, -1.0f, 1.0f);
 #else
 						const float scale = 3.0f;
-						DirectX::XMMATRIX viewScalingMatrix = DirectX::XMMatrixScaling(scale / ratio, -scale, 1.0f);
+						DirectX::XMMATRIX viewScalingMatrix = DirectX::XMMatrixIdentity();  //DirectX::XMMatrixScaling(scale / ratio, -scale, 1.0f);
 
-						const float offsetX = 76.7f;
-						const float offsetY = -37.2f;
+						const float offsetX = 0.0f;  //76.7f;
+						const float offsetY = 0.0f;  //-37.2f;
+						const float cameradir = -1.0f;
 
-						DirectX::XMVECTOR pos = DirectX::XMVectorSet(offsetX, offsetY, -40.0f, 0.0f);
+						DirectX::XMVECTOR pos = DirectX::XMVectorSet(offsetX, offsetY, 40.0f * -cameradir, 0.0f);
 						DirectX::XMVECTOR target = DirectX::XMVectorSet(offsetX, offsetY, 0.0f, 0.0f);
-						DirectX::XMVECTOR direction = DirectX::XMVectorSubtract(target, pos);
+						DirectX::XMVECTOR direction = DirectX::XMVectorSet(0.0f, 0.0f, cameradir, 0.0f); //DirectX::XMVectorSubtract(target, pos);
 
-						DirectX::XMMATRIX viewMatrix = DirectX::XMMatrixLookToLH(pos, dir, up);
+						DirectX::XMMATRIX viewMatrix = DirectX::XMMatrixLookToLH(pos, direction, up);
 #endif
 
 						// Roatete the image around on, so it is correct
