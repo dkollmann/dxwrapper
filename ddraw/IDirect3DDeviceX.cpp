@@ -401,7 +401,7 @@ HRESULT m_IDirect3DDeviceX::SetTransform(D3DTRANSFORMSTATETYPE dtstTransformStat
 					else
 					{
 						// Generate the view matrix using the given position and orientation, and the matrix needed to compensate for the homogenous view
-#define USE_GAME_CAMERA 0
+#define USE_GAME_CAMERA 1
 
 #if USE_GAME_CAMERA
 						// To reconstruct the 3D world, we need to know where the camera is and where it is looking
@@ -413,7 +413,6 @@ HRESULT m_IDirect3DDeviceX::SetTransform(D3DTRANSFORMSTATETYPE dtstTransformStat
 						//position = DirectX::XMVectorMultiply(position, flipy);
 						//dir = DirectX::XMVectorMultiply(dir, flipy);
 #endif
-
 						// Override the original matrix
 						std::memcpy(lpD3DMatrix, &view, sizeof(_D3DMATRIX));
 
@@ -431,7 +430,7 @@ HRESULT m_IDirect3DDeviceX::SetTransform(D3DTRANSFORMSTATETYPE dtstTransformStat
 						DirectX::XMVECTOR up = DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
 
 #if USE_GAME_CAMERA
-						DirectX::XMMATRIX viewMatrix = DirectX::XMMatrixLookToLH(position, dir, up);
+						DirectX::XMMATRIX viewMatrix = DirectX::XMMatrixLookToLH(position, direction, up);
 
 						DirectX::XMMATRIX viewScalingMatrix = DirectX::XMMatrixIdentity();  //DirectX::XMMatrixScaling(1.0f, -1.0f, 1.0f);
 #else
@@ -443,21 +442,23 @@ HRESULT m_IDirect3DDeviceX::SetTransform(D3DTRANSFORMSTATETYPE dtstTransformStat
 
 						DirectX::XMVECTOR pos = DirectX::XMVectorSet(offsetX, offsetY, -40.0f, 0.0f);
 						DirectX::XMVECTOR target = DirectX::XMVectorSet(offsetX, offsetY, 0.0f, 0.0f);
-						DirectX::XMVECTOR dir = DirectX::XMVectorSubtract(target, pos);
+						DirectX::XMVECTOR direction = DirectX::XMVectorSubtract(target, pos);
 
 						DirectX::XMMATRIX viewMatrix = DirectX::XMMatrixLookToLH(pos, dir, up);
 #endif
 
 						// Roatete the image around on, so it is correct
-						DirectX::XMMATRIX viewRotMatrix = DirectX::XMMatrixRotationAxis(dir, 3.14159265359f);
+						DirectX::XMMATRIX viewRotMatrix = DirectX::XMMatrixRotationAxis(direction, 3.14159265359f);
 						DirectX::XMMATRIX viewMatrixAdjusted = DirectX::XMMatrixMultiply(viewScalingMatrix, viewMatrix);
 
 						// Store the 3D view matrix so it can be set later
 						DirectX::XMStoreFloat4x4((DirectX::XMFLOAT4X4*)&RenderData.DdrawConvertHomogeneousToWorld_ViewMatrix, viewMatrixAdjusted);
 
 						// Store the view inverse matrix of the game, so we can transform the geometry with it
-						DirectX::XMMATRIX vp = DirectX::XMMatrixMultiply(proj, viewMatrix);
-						RenderData.DdrawConvertHomogeneousToWorld_ViewMatrixInverse = DirectX::XMMatrixInverse(nullptr, vp);
+						DirectX::XMMATRIX toViewSpace = DirectX::XMLoadFloat4x4((DirectX::XMFLOAT4X4*)lpD3DMatrix);
+						DirectX::XMMATRIX vp = DirectX::XMMatrixMultiply(viewMatrix, proj);
+						DirectX::XMMATRIX vpinv = DirectX::XMMatrixInverse(nullptr, vp);
+						RenderData.DdrawConvertHomogeneousToWorld_ViewMatrixInverse = DirectX::XMMatrixMultiply(toViewSpace, vpinv);
 					}
 				}
 			}
@@ -2873,6 +2874,8 @@ HRESULT m_IDirect3DDeviceX::DeleteStateBlock(DWORD dwBlockHandle)
 
 		// ToDo: Validate BlockHandle
 		reinterpret_cast<IDirect3DStateBlock9*>(dwBlockHandle)->Release();
+
+		return DD_OK;
 	}
 
 	return GetProxyInterfaceV7()->DeleteStateBlock(dwBlockHandle);
