@@ -1677,7 +1677,7 @@ HRESULT m_IDirect3DDeviceX::EndScene()
 		}
 
 #ifdef ENABLE_DEBUGOVERLAY
-		DOverlay.EndScene();
+		DOverlay.EndScene(RenderData);
 #endif
 
 		// The IDirect3DDevice7::EndScene method ends a scene that was begun by calling the IDirect3DDevice7::BeginScene method.

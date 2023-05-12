@@ -2,6 +2,7 @@
 
 #include <DirectXMath.h>
 #include "IDirectDrawX.h"
+#include "RenderData.h"
 
 class m_IDirect3DDeviceX : public IUnknown, public AddressLookupTableDdrawObject
 {
@@ -28,8 +29,8 @@ private:
 	// SetTexture array
 	LPDIRECTDRAWSURFACE7 AttachedTexture[8] = {};
 
-	// Store the projection matrix used to transform the geometry on the gpu
-	_D3DMATRIX DdrawConvertHomogeneousToWorld_ProjectionMatrix;
+	// The data used for rendering
+	RenderData RenderData;
 
 	// Store the view matrix used to transform the geometry on the gpu
 	_D3DMATRIX DdrawConvertHomogeneousToWorld_ViewMatrix;
