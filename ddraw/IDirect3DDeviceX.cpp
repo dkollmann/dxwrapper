@@ -535,7 +535,8 @@ HRESULT m_IDirect3DDeviceX::PreLoad(LPDIRECTDRAWSURFACE7 lpddsTexture)
 
 	if (Config.Dd7to9)
 	{
-		// Not needed for Direct3D9
+		// ToDo: Call PreLoad for the texture.
+		// Calling this method indicates that the application will need this managed resource shortly. This method has no effect on nonmanaged resources.
 		return D3D_OK;
 	}
 
@@ -553,8 +554,68 @@ HRESULT m_IDirect3DDeviceX::Load(LPDIRECTDRAWSURFACE7 lpDestTex, LPPOINT lpDestP
 
 	if (Config.Dd7to9)
 	{
-		LOG_LIMIT(100, __FUNCTION__ << " Not Implemented");
-		return DDERR_UNSUPPORTED;
+		if (!lpDestTex || !lpSrcTex)
+		{
+			return  DDERR_INVALIDPARAMS;
+		}
+
+		// ToDo: support the following dwFlags: 
+		// DDSCAPS2_CUBEMAP_ALLFACES - All faces should be loaded with the image data within the source texture.
+		// DDSCAPS2_CUBEMAP_NEGATIVEX, DDSCAPS2_CUBEMAP_NEGATIVEY, or DDSCAPS2_CUBEMAP_NEGATIVEZ
+		//     The negative x, y, or z faces should receive the image data.
+		// DDSCAPS2_CUBEMAP_POSITIVEX, DDSCAPS2_CUBEMAP_POSITIVEY, or DDSCAPS2_CUBEMAP_POSITIVEZ
+		//     The positive x, y, or z faces should receive the image data.
+
+		if (dwFlags)
+		{
+			LOG_LIMIT(100, __FUNCTION__ << " Warning: flags not supported. dwFlags: " << Logging::hex(dwFlags));
+		}
+
+		// ToDo: check if source and destination surfaces are valid
+
+		if (!lprcSrcRect && (!lpDestPoint || (lpDestPoint && lpDestPoint->x == 0 && lpDestPoint->y == 0)))
+		{
+			return lpDestTex->Blt(nullptr, lpSrcTex, nullptr, 0, nullptr);
+		}
+		else
+		{
+			// Get source rect
+			RECT SrcRect = {};
+			if (lprcSrcRect)
+			{
+				SrcRect = *lprcSrcRect;
+			}
+			else
+			{
+				DDSURFACEDESC2 Desc2 = {};
+				Desc2.dwSize = sizeof(DDSURFACEDESC2);
+				lpSrcTex->GetSurfaceDesc(&Desc2);
+
+				if ((Desc2.dwFlags & (DDSD_WIDTH | DDSD_HEIGHT)) != (DDSD_WIDTH | DDSD_HEIGHT))
+				{
+					return DDERR_GENERIC;
+				}
+
+				SrcRect = { 0, 0, (LONG)Desc2.dwWidth, (LONG)Desc2.dwHeight };
+			}
+
+			// Get destination point
+			POINT DestPoint = {};
+			if (lpDestPoint)
+			{
+				DestPoint = *lpDestPoint;
+			}
+
+			// Get destination rect
+			RECT DestRect = {
+				DestPoint.x,									// left
+				DestPoint.y,									// top
+				DestPoint.x + (SrcRect.right - SrcRect.left),	// right
+				DestPoint.y + (SrcRect.bottom - SrcRect.top),	// bottom
+			};
+
+			return lpDestTex->Blt(&DestRect, lpSrcTex, &SrcRect, 0, nullptr);
+		}
 	}
 
 	if (lpDestTex)
@@ -1278,6 +1339,7 @@ HRESULT m_IDirect3DDeviceX::AddViewport(LPDIRECT3DVIEWPORT3 lpDirect3DViewport)
 		Viewport.dwSize = sizeof(D3DVIEWPORT);
 
 		// ToDo: Validate Viewport address
+		// ToDo: Increment Viewport ref count
 		HRESULT hr = lpDirect3DViewport->GetViewport(&Viewport);
 
 		if (SUCCEEDED(hr))
@@ -1338,7 +1400,7 @@ HRESULT m_IDirect3DDeviceX::DeleteViewport(LPDIRECT3DVIEWPORT3 lpDirect3DViewpor
 	}
 }
 
-HRESULT m_IDirect3DDeviceX::NextViewport(LPDIRECT3DVIEWPORT3 lpDirect3DViewport, LPDIRECT3DVIEWPORT3 * lplpDirect3DViewport, DWORD dwFlags, DWORD DirectXVersion)
+HRESULT m_IDirect3DDeviceX::NextViewport(LPDIRECT3DVIEWPORT3 lpDirect3DViewport, LPDIRECT3DVIEWPORT3* lplpDirect3DViewport, DWORD dwFlags, DWORD DirectXVersion)
 {
 	Logging::LogDebug() << __FUNCTION__ << " (" << this << ")";
 
@@ -1406,24 +1468,27 @@ HRESULT m_IDirect3DDeviceX::SetCurrentViewport(LPDIRECT3DVIEWPORT3 lpd3dViewport
 	}
 }
 
-HRESULT m_IDirect3DDeviceX::GetCurrentViewport(LPDIRECT3DVIEWPORT3 * lplpd3dViewport, DWORD DirectXVersion)
+HRESULT m_IDirect3DDeviceX::GetCurrentViewport(LPDIRECT3DVIEWPORT3* lplpd3dViewport, DWORD DirectXVersion)
 {
 	Logging::LogDebug() << __FUNCTION__ << " (" << this << ")";
 
 	if (Config.Dd7to9 || ProxyDirectXVersion == 7)
 	{
-		if (lplpd3dViewport && lpCurrentViewport)
+		if (!lplpd3dViewport)
 		{
-			// ToDo: Validate current Viewport address
-			*lplpd3dViewport = (LPDIRECT3DVIEWPORT3)lpCurrentViewport;
-			return D3D_OK;
+			return DDERR_INVALIDPARAMS;
 		}
-		else if (!lpCurrentViewport)
+
+		if (!lpCurrentViewport)
 		{
 			return D3DERR_NOCURRENTVIEWPORT;
 		}
 
-		return DDERR_INVALIDPARAMS;
+		// ToDo: Validate Viewport address
+		// ToDo: Increment Viewport ref count
+		*lplpd3dViewport = (LPDIRECT3DVIEWPORT3)lpCurrentViewport;
+
+		return D3D_OK;
 	}
 
 	HRESULT hr = DDERR_GENERIC;
@@ -1868,7 +1933,6 @@ HRESULT m_IDirect3DDeviceX::SetLight(DWORD dwLightIndex, LPD3DLIGHT7 lpLight)
 {
 	Logging::LogDebug() << __FUNCTION__ << " (" << this << ")";
 
-	HRESULT hr;
 	if (Config.Dd7to9)
 	{
 		if (!lpLight)
@@ -1894,7 +1958,7 @@ HRESULT m_IDirect3DDeviceX::SetLight(DWORD dwLightIndex, LPD3DLIGHT7 lpLight)
 			}
 		}
 
-		hr = (*d3d9Device)->SetLight(dwLightIndex, &Light);
+		HRESULT hr = (*d3d9Device)->SetLight(dwLightIndex, &Light);
 
 		if (SUCCEEDED(hr))
 		{
