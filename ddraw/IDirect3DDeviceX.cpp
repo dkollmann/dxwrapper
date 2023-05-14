@@ -333,10 +333,9 @@ void CopyPositionAndOrientationFromViewMatrix(const _D3DMATRIX *src, DirectX::XM
 	CopyPositionAndOrientationFromViewMatrix(srcx, dest);
 }
 
-#pragma optimize("", off)
 HRESULT m_IDirect3DDeviceX::SetTransform(D3DTRANSFORMSTATETYPE dtstTransformStateType, LPD3DMATRIX lpD3DMatrix)
 {
-	Logging::LogDebug() << __FUNCTION__ << " (" << this << ") " << dtstTransformStateType;
+	Logging::LogDebug() << __FUNCTION__ << " (" << this << ") ";
 
 	if (Config.Dd7to9)
 	{
@@ -482,7 +481,6 @@ HRESULT m_IDirect3DDeviceX::SetTransform(D3DTRANSFORMSTATETYPE dtstTransformStat
 		return GetProxyInterfaceV7()->SetTransform(dtstTransformStateType, lpD3DMatrix);
 	}
 }
-#pragma optimize("", on)
 
 HRESULT m_IDirect3DDeviceX::GetTransform(D3DTRANSFORMSTATETYPE dtstTransformStateType, LPD3DMATRIX lpD3DMatrix)
 {
