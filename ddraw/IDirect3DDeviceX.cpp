@@ -442,7 +442,10 @@ HRESULT m_IDirect3DDeviceX::SetTransform(D3DTRANSFORMSTATETYPE dtstTransformStat
 						DirectX::XMMATRIX toViewSpace = DirectX::XMLoadFloat4x4((DirectX::XMFLOAT4X4*)lpD3DMatrix);
 						DirectX::XMMATRIX vp = DirectX::XMMatrixMultiply(viewMatrix, proj);
 						DirectX::XMMATRIX vpinv = DirectX::XMMatrixInverse(nullptr, vp);
-						RenderData.DdrawConvertHomogeneousToWorld_ViewMatrixInverse = DirectX::XMMatrixMultiply(toViewSpace, vpinv);
+
+						DirectX::XMMATRIX depthoffset = DirectX::XMMatrixTranslation(0.0f, 0.0f, Config.DdrawConvertHomogeneousToWorldDepthOffset);
+
+						RenderData.DdrawConvertHomogeneousToWorld_ViewMatrixInverse = DirectX::XMMatrixMultiply(depthoffset, DirectX::XMMatrixMultiply(toViewSpace, vpinv));
 					}
 				}
 			}
