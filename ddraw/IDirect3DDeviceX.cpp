@@ -371,6 +371,11 @@ HRESULT m_IDirect3DDeviceX::SetTransform(D3DTRANSFORMSTATETYPE dtstTransformStat
 
 		if(Config.DdrawConvertHomogeneousW)
 		{
+#ifdef ENABLE_DEBUGOVERLAY
+			// Set the original matrix
+			DOverlay.SetTransform(dtstTransformStateType, lpD3DMatrix);
+#endif
+
 			if(dtstTransformStateType == D3DTS_VIEW)
 			{
 				D3DVIEWPORT9 Viewport9;
@@ -454,12 +459,12 @@ HRESULT m_IDirect3DDeviceX::SetTransform(D3DTRANSFORMSTATETYPE dtstTransformStat
 
 		HRESULT hr = (*d3d9Device)->SetTransform(dtstTransformStateType, lpD3DMatrix);
 
-		if (SUCCEEDED(hr))
-		{
 #ifdef ENABLE_DEBUGOVERLAY
-			//DOverlay.SetTransform(dtstTransformStateType, lpD3DMatrix);
-#endif
+		if (SUCCEEDED(hr) && !Config.DdrawConvertHomogeneousW)
+		{
+			DOverlay.SetTransform(dtstTransformStateType, lpD3DMatrix);
 		}
+#endif
 
 		return hr;
 	}
