@@ -306,33 +306,6 @@ HRESULT m_IDirect3DDeviceX::DeleteMatrix(D3DMATRIXHANDLE d3dMatHandle)
 	return GetProxyInterfaceV1()->DeleteMatrix(d3dMatHandle);
 }
 
-void CopyPositionAndOrientationFromViewMatrix(const DirectX::XMMATRIX& src, DirectX::XMMATRIX& dest)
-{
-	// Extract orientation
-	DirectX::XMVECTOR fwd = src.r[2];
-	DirectX::XMVECTOR right = src.r[0];
-	DirectX::XMVECTOR up = DirectX::XMVector3Cross(fwd, right);
-
-	// Extract position
-	DirectX::XMVECTOR pos = src.r[3];
-
-	// Build new transform
-	dest.r[0] = right;
-	dest.r[1] = up;
-	dest.r[2] = fwd;
-	dest.r[3] = pos;
-
-	// Clear the last row
-	dest.r[3] = DirectX::XMVectorSetW(dest.r[3], 1.0f);
-}
-
-void CopyPositionAndOrientationFromViewMatrix(const _D3DMATRIX *src, DirectX::XMMATRIX& dest)
-{
-	DirectX::XMMATRIX srcx = DirectX::XMLoadFloat4x4((DirectX::XMFLOAT4X4*)src);
-
-	CopyPositionAndOrientationFromViewMatrix(srcx, dest);
-}
-
 HRESULT m_IDirect3DDeviceX::SetTransform(D3DTRANSFORMSTATETYPE dtstTransformStateType, LPD3DMATRIX lpD3DMatrix)
 {
 	Logging::LogDebug() << __FUNCTION__ << " (" << this << ") ";
