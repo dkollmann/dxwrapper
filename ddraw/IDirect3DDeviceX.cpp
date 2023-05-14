@@ -1971,10 +1971,8 @@ HRESULT m_IDirect3DDeviceX::SetLight(DWORD dwLightIndex, LPD3DLIGHT7 lpLight)
 	}
 	else
 	{
-		hr = GetProxyInterfaceV7()->SetLight(dwLightIndex, lpLight);
+		return GetProxyInterfaceV7()->SetLight(dwLightIndex, lpLight);
 	}
-
-	return hr;
 }
 
 HRESULT m_IDirect3DDeviceX::GetLight(DWORD dwLightIndex, LPD3DLIGHT7 lpLight)
