@@ -1160,10 +1160,6 @@ HRESULT m_IDirectDrawX::GetCaps(LPDDCAPS lpDDDriverCaps, LPDDCAPS lpDDHELCaps)
 			HELCaps.dwVidMemTotal = dwVidTotal;
 			HELCaps.dwVidMemFree = dwVidFree;
 		}
-
-		// force 3D
-		DriverCaps.dwCaps |= DDCAPS_3D;
-		HELCaps.dwCaps |= DDCAPS_3D;
 	}
 	else
 	{

@@ -390,9 +390,6 @@ HRESULT m_IDirect3DDeviceX::SetTransform(D3DTRANSFORMSTATETYPE dtstTransformStat
 					view._42 = 1.0f;   // translate Y
 					view._44 = 1.0f;
 
-					RenderData.DdrawConvertHomogeneousToWorld_OriginalCamPos = { lpD3DMatrix->_41, lpD3DMatrix->_42, lpD3DMatrix->_43 };
-					RenderData.DdrawConvertHomogeneousToWorld_OriginalCamDir = { lpD3DMatrix->_31, lpD3DMatrix->_32, lpD3DMatrix->_33 };
-
 					if(!Config.DdrawConvertHomogeneousToWorld)
 					{
 						// Override the original matrix

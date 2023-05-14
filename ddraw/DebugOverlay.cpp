@@ -110,16 +110,6 @@ void DebugOverlay::EndScene(const RenderData &RenderData)
 
 	if (ShowDebugUI)
 	{
-		{
-			std::stringstream ss;
-			ss <<   "Position: " << RenderData.DdrawConvertHomogeneousToWorld_OriginalCamPos.x << " / " << RenderData.DdrawConvertHomogeneousToWorld_OriginalCamPos.y << " / " << RenderData.DdrawConvertHomogeneousToWorld_OriginalCamPos.z;
-			ss << "\nDirection: " << RenderData.DdrawConvertHomogeneousToWorld_OriginalCamDir.x << " / " << RenderData.DdrawConvertHomogeneousToWorld_OriginalCamDir.y << " / " << RenderData.DdrawConvertHomogeneousToWorld_OriginalCamDir.z;
-
-			ImGui::Begin("Game Camera");
-			ImGui::Text(ss.str().c_str());
-			ImGui::End();
-		}
-
 		std::stringstream matrices;
 		matrices << "WORLD\n" <<
 			worldMatrix._11 << " / " << worldMatrix._12 << " / " << worldMatrix._13 << " / " << worldMatrix._14 << '\n' <<

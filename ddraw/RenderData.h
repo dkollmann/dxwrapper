@@ -23,12 +23,6 @@ public:
 	// Intermediate buffer for the geometry conversion
 	std::vector<uint8_t> DdrawConvertHomogeneousToWorld_IntermediateGeometry;
 
-	// The position of the original game camera
-	_D3DVECTOR DdrawConvertHomogeneousToWorld_OriginalCamPos {0.0f, 0.0f, 0.0f};
-
-	// The position of the original game camera
-	_D3DVECTOR DdrawConvertHomogeneousToWorld_OriginalCamDir {0.0f, 0.0f, 0.0f};
-
 	RenderData()
 	{
 		ZeroMemory(&DdrawConvertHomogeneousToWorld_ViewMatrix, sizeof(_D3DMATRIX));
