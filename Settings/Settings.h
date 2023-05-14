@@ -45,6 +45,7 @@
 	visit(DdrawUseDirect3D9Ex) \
 	visit(DdrawConvertHomogeneousW) \
 	visit(DdrawConvertHomogeneousToWorld) \
+	visit(DdrawConvertHomogeneousToWorldUseGameCamera) \
 	visit(DdrawConvertHomogeneousToWorldFOV) \
 	visit(DdrawConvertHomogeneousToWorldNearPlane) \
 	visit(DdrawConvertHomogeneousToWorldFarPlane) \
@@ -217,6 +218,7 @@ struct CONFIG
 	bool DdrawUseDirect3D9Ex = false;			// Use Direct3D9Ex extensions for Dd7to9
 	bool DdrawConvertHomogeneousW = false;		// Convert primites using D3DFVF_XYZRHW to D3DFVF_XYZW.
 	bool DdrawConvertHomogeneousToWorld = false;			// Convert primitives back into a world space. Needed for RTX.
+	bool DdrawConvertHomogeneousToWorldUseGameCamera = false;	// Use the game's view matrix instead of replacing it with our own.
 	float DdrawConvertHomogeneousToWorldFOV = 90.0f;		// The field of view of the camera used to reconstruct the original 3D world.
 	float DdrawConvertHomogeneousToWorldNearPlane = 1.0f;	// The near plane of the camera used to reconstruct the original 3D world.
 	float DdrawConvertHomogeneousToWorldFarPlane = 1000.0f;	// The far plane of the camera used to reconstruct the original 3D world.
