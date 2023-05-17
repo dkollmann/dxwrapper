@@ -16,10 +16,9 @@
 
 #include "ddraw.h"
 #include <d3dhal.h>
-#include <DirectXMath.h>
 
 // Enable for testing only
-#define ENABLE_DEBUGOVERLAY
+//#define ENABLE_DEBUGOVERLAY
 
 #ifdef ENABLE_DEBUGOVERLAY
 #include "DebugOverlay.h"
@@ -338,26 +337,25 @@ HRESULT m_IDirect3DDeviceX::SetTransform(D3DTRANSFORMSTATETYPE dtstTransformStat
 			dtstTransformStateType = D3DTS_WORLD3;
 			break;
 		}
-        
-		if(Config.DdrawConvertHomogeneousW)
+
+		D3DMATRIX view;
+		if (Config.DdrawConvertHomogeneousW)
 		{
 #ifdef ENABLE_DEBUGOVERLAY
 			// Set the original matrix
 			DOverlay.SetTransform(dtstTransformStateType, lpD3DMatrix);
 #endif
 
-			if(dtstTransformStateType == D3DTS_VIEW)
+			if (dtstTransformStateType == D3DTS_VIEW)
 			{
 				D3DVIEWPORT9 Viewport9;
-				if(SUCCEEDED((*d3d9Device)->GetViewport(&Viewport9)))
+				if (SUCCEEDED((*d3d9Device)->GetViewport(&Viewport9)))
 				{
 					const float width = (float)Viewport9.Width;
 					const float height = (float)Viewport9.Height;
-					const float ratio = width / height;
 
 					// Replace the matrix with one that handles D3DFVF_XYZRHW geometry
-					_D3DMATRIX view;
-					ZeroMemory(&view, sizeof(_D3DMATRIX));
+					ZeroMemory(&view, sizeof(D3DMATRIX));
 					view._11 = 2.0f / width;
 					view._22 = -2.0f / height;
 					view._33 = 1.0f;
@@ -365,15 +363,16 @@ HRESULT m_IDirect3DDeviceX::SetTransform(D3DTRANSFORMSTATETYPE dtstTransformStat
 					view._42 = 1.0f;   // translate Y
 					view._44 = 1.0f;
 
-					if(!Config.DdrawConvertHomogeneousToWorld)
-					{
-						// Override the original matrix
-						std::memcpy(lpD3DMatrix, &view, sizeof(_D3DMATRIX));
-					}
-					else
+					// Override original matrix pointer
+					lpD3DMatrix = &view;
+
+					// Set flag
+					ConvertHomogeneous.IsTransformViewSet = true;
+
+					if (Config.DdrawConvertHomogeneousToWorld)
 					{
 						DirectX::XMVECTOR position, direction;
-						if(Config.DdrawConvertHomogeneousToWorldUseGameCamera)
+						if (Config.DdrawConvertHomogeneousToWorldUseGameCamera)
 						{
 							// To reconstruct the 3D world, we need to know where the camera is and where it is looking
 							position = DirectX::XMVectorSet(lpD3DMatrix->_41, lpD3DMatrix->_42, lpD3DMatrix->_43, lpD3DMatrix->_44);
@@ -384,28 +383,26 @@ HRESULT m_IDirect3DDeviceX::SetTransform(D3DTRANSFORMSTATETYPE dtstTransformStat
 							const float cameradir = 1.0f;
 
 							position = DirectX::XMVectorSet(0.0f, 0.0f, -cameradir, 0.0f);
-							DirectX::XMVectorSet(0.0f, 0.0f, cameradir, 0.0f);
+							direction = DirectX::XMVectorSet(0.0f, 0.0f, cameradir, 0.0f);
 						}
 
-						// Override the original matrix
-						std::memcpy(lpD3DMatrix, &view, sizeof(_D3DMATRIX));
-
 						// Store the original matrix so it can be restored
-						std::memcpy(&RenderData.DdrawConvertHomogeneousToWorld_ViewMatrixOriginal, &view, sizeof(_D3DMATRIX));
+						ConvertHomogeneous.ToWorld_ViewMatrixOriginal = view;
 
 						// The Black & White matrix is an ortho camera, so create a perspective one matching the game
 						const float fov = Config.DdrawConvertHomogeneousToWorldFOV;
 						const float nearplane = Config.DdrawConvertHomogeneousToWorldNearPlane;
 						const float farplane = Config.DdrawConvertHomogeneousToWorldFarPlane;
+						const float ratio = width / height;
 						DirectX::XMMATRIX proj = DirectX::XMMatrixPerspectiveFovLH(fov * (3.14159265359f / 180.0f), ratio, nearplane, farplane);
 
-						DirectX::XMStoreFloat4x4((DirectX::XMFLOAT4X4*)&RenderData.DdrawConvertHomogeneousToWorld_ProjectionMatrix, proj);
+						DirectX::XMStoreFloat4x4((DirectX::XMFLOAT4X4*)&ConvertHomogeneous.ToWorld_ProjectionMatrix, proj);
 
 						DirectX::XMVECTOR up = DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
 						DirectX::XMMATRIX viewMatrix = DirectX::XMMatrixLookToLH(position, direction, up);
 
 						// Store the 3D view matrix so it can be set later
-						DirectX::XMStoreFloat4x4((DirectX::XMFLOAT4X4*)&RenderData.DdrawConvertHomogeneousToWorld_ViewMatrix, viewMatrix);
+						DirectX::XMStoreFloat4x4((DirectX::XMFLOAT4X4*)&ConvertHomogeneous.ToWorld_ViewMatrix, viewMatrix);
 
 						// Store the view inverse matrix of the game, so we can transform the geometry with it
 						DirectX::XMMATRIX toViewSpace = DirectX::XMLoadFloat4x4((DirectX::XMFLOAT4X4*)lpD3DMatrix);
@@ -414,7 +411,7 @@ HRESULT m_IDirect3DDeviceX::SetTransform(D3DTRANSFORMSTATETYPE dtstTransformStat
 
 						DirectX::XMMATRIX depthoffset = DirectX::XMMatrixTranslation(0.0f, 0.0f, Config.DdrawConvertHomogeneousToWorldDepthOffset);
 
-						RenderData.DdrawConvertHomogeneousToWorld_ViewMatrixInverse = DirectX::XMMatrixMultiply(depthoffset, DirectX::XMMatrixMultiply(toViewSpace, vpinv));
+						ConvertHomogeneous.ToWorld_ViewMatrixInverse = DirectX::XMMatrixMultiply(depthoffset, DirectX::XMMatrixMultiply(toViewSpace, vpinv));
 					}
 				}
 			}
@@ -1670,6 +1667,11 @@ HRESULT m_IDirect3DDeviceX::BeginScene()
 		DOverlay.BeginScene();
 #endif
 
+		if (Config.DdrawDisableLighting)
+		{
+			(*d3d9Device)->SetRenderState(D3DRS_LIGHTING, FALSE);
+		}
+
 		return hr;
 	}
 
@@ -1703,7 +1705,7 @@ HRESULT m_IDirect3DDeviceX::EndScene()
 		}
 
 #ifdef ENABLE_DEBUGOVERLAY
-		DOverlay.EndScene(RenderData);
+		DOverlay.EndScene();
 #endif
 
 		// The IDirect3DDevice7::EndScene method ends a scene that was begun by calling the IDirect3DDevice7::BeginScene method.
@@ -2139,7 +2141,7 @@ HRESULT m_IDirect3DDeviceX::SetRenderState(D3DRENDERSTATETYPE dwRenderStateType,
 			break;
 		}
 		case D3DRS_LIGHTING:
-			if(Config.DdrawDisableLighting)
+			if (Config.DdrawDisableLighting)
 			{
 				dwRenderState = FALSE;
 			}
@@ -2550,9 +2552,16 @@ HRESULT m_IDirect3DDeviceX::DrawIndexedPrimitive(D3DPRIMITIVETYPE dptPrimitiveTy
 			const UINT stride = GetVertexStride(dwVertexTypeDesc);
 
 			// Handle PositionT
-			if((dwVertexTypeDesc & D3DFVF_XYZRHW) != 0 && Config.DdrawConvertHomogeneousW)
+			if (Config.DdrawConvertHomogeneousW && (dwVertexTypeDesc & 0x0E) == D3DFVF_XYZRHW)
 			{
-				if(!Config.DdrawConvertHomogeneousToWorld)
+				if (!ConvertHomogeneous.IsTransformViewSet)
+				{
+					D3DMATRIX Matrix = {};
+					GetTransform(D3DTS_VIEW, &Matrix);
+					SetTransform(D3DTS_VIEW, &Matrix);
+				}
+
+				if (!Config.DdrawConvertHomogeneousToWorld)
 				{
 					/*UINT8 *vertex = (UINT8*)lpVertices;
 
@@ -2573,10 +2582,10 @@ HRESULT m_IDirect3DDeviceX::DrawIndexedPrimitive(D3DPRIMITIVETYPE dptPrimitiveTy
 					const UINT targetStride = stride - sizeof(float);
 					const UINT restSize = stride - sizeof(float) * 4;
 
-					RenderData.DdrawConvertHomogeneousToWorld_IntermediateGeometry.resize(targetStride * dwVertexCount);
+					ConvertHomogeneous.ToWorld_IntermediateGeometry.resize(targetStride * dwVertexCount);
 
 					UINT8 *sourceVertex = (UINT8*)lpVertices;
-					UINT8 *targetVertex = (UINT8*)RenderData.DdrawConvertHomogeneousToWorld_IntermediateGeometry.data();
+					UINT8 *targetVertex = (UINT8*)ConvertHomogeneous.ToWorld_IntermediateGeometry.data();
 
 					lpVertices = targetVertex;
 
@@ -2588,7 +2597,7 @@ HRESULT m_IDirect3DDeviceX::DrawIndexedPrimitive(D3DPRIMITIVETYPE dptPrimitiveTy
 
 						DirectX::XMVECTOR xpos = DirectX::XMVectorSet(srcpos[0], srcpos[1], srcpos[2], srcpos[3]);
 
-						DirectX::XMVECTOR xpos_global = DirectX::XMVector3TransformCoord(xpos, RenderData.DdrawConvertHomogeneousToWorld_ViewMatrixInverse);
+						DirectX::XMVECTOR xpos_global = DirectX::XMVector3TransformCoord(xpos, ConvertHomogeneous.ToWorld_ViewMatrixInverse);
 
 						xpos_global = DirectX::XMVectorDivide(xpos_global, DirectX::XMVectorSplatW(xpos_global));
 
@@ -2605,8 +2614,8 @@ HRESULT m_IDirect3DDeviceX::DrawIndexedPrimitive(D3DPRIMITIVETYPE dptPrimitiveTy
 					}
 
 					// Set transform
-					(*d3d9Device)->SetTransform(D3DTS_VIEW, &RenderData.DdrawConvertHomogeneousToWorld_ViewMatrix);
-					(*d3d9Device)->SetTransform(D3DTS_PROJECTION, &RenderData.DdrawConvertHomogeneousToWorld_ProjectionMatrix);
+					(*d3d9Device)->SetTransform(D3DTS_VIEW, &ConvertHomogeneous.ToWorld_ViewMatrix);
+					(*d3d9Device)->SetTransform(D3DTS_PROJECTION, &ConvertHomogeneous.ToWorld_ProjectionMatrix);
 
 					// Update the FVF
 					const DWORD newVertexTypeDesc = (dwVertexTypeDesc & ~D3DFVF_XYZRHW) | D3DFVF_XYZ;
@@ -2618,13 +2627,12 @@ HRESULT m_IDirect3DDeviceX::DrawIndexedPrimitive(D3DPRIMITIVETYPE dptPrimitiveTy
 					hr = (*d3d9Device)->DrawIndexedPrimitiveUP(dptPrimitiveType, 0, dwVertexCount, GetNumberOfPrimitives(dptPrimitiveType, dwIndexCount), lpIndices, D3DFMT_INDEX16, lpVertices, targetStride);
 
 					// Restore transform
-					_D3DMATRIX identityMatrix;
-					ZeroMemory(&identityMatrix, sizeof(_D3DMATRIX));
+					D3DMATRIX identityMatrix = {};
 					identityMatrix._11 = 1.0f;
 					identityMatrix._22 = 1.0f;
 					identityMatrix._33 = 1.0f;
 
-					(*d3d9Device)->SetTransform(D3DTS_VIEW, &RenderData.DdrawConvertHomogeneousToWorld_ViewMatrixOriginal);
+					(*d3d9Device)->SetTransform(D3DTS_VIEW, &ConvertHomogeneous.ToWorld_ViewMatrixOriginal);
 					(*d3d9Device)->SetTransform(D3DTS_PROJECTION, &identityMatrix);
 
 					// Handle dwFlags
@@ -3024,6 +3032,18 @@ void m_IDirect3DDeviceX::InitDevice(DWORD DirectXVersion)
 		return;
 	}
 
+	if (Config.DdrawConvertHomogeneousW)
+	{
+		ZeroMemory(&ConvertHomogeneous.ToWorld_ViewMatrix, sizeof(D3DMATRIX));
+		ConvertHomogeneous.ToWorld_ViewMatrix._11 = 1.0f;
+		ConvertHomogeneous.ToWorld_ViewMatrix._22 = 1.0f;
+		ConvertHomogeneous.ToWorld_ViewMatrix._33 = 1.0f;
+		ConvertHomogeneous.ToWorld_ViewMatrix._44 = 1.0f;
+
+		ConvertHomogeneous.ToWorld_ProjectionMatrix = ConvertHomogeneous.ToWorld_ViewMatrix;
+		ConvertHomogeneous.ToWorld_ViewMatrixOriginal = ConvertHomogeneous.ToWorld_ViewMatrix;
+	}
+
 	AddRef(DirectXVersion);
 }
 
@@ -3085,6 +3105,9 @@ HRESULT m_IDirect3DDeviceX::CheckInterface(char *FunctionName, bool CheckD3DDevi
 
 void m_IDirect3DDeviceX::ResetDevice()
 {
+	// Reset flags
+	ConvertHomogeneous.IsTransformViewSet = false;
+
 	// Reset textures after device reset
 	for (UINT x = 0; x < 8; x++)
 	{
