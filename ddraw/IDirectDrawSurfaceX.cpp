@@ -24,6 +24,32 @@
 #include "d3dx9.h"
 #include "Utils\Utils.h"
 
+typedef uint8_t guint8;
+typedef uint32_t guint;
+#include "images/HandDecal.c"
+
+#define GETA(color) (((color) >> 24) & 0xFF)
+#define GETR(color) (((color) >> 16) & 0xFF)
+#define GETG(color) (((color) >> 8) & 0xFF)
+#define GETB(color) ((color) & 0xFF)
+
+#pragma pack(push, 1)
+
+struct A4R4G4B4
+{
+	uint16_t a :4;
+	uint16_t r :4;
+	uint16_t g :4;
+	uint16_t b :4;
+
+	A4R4G4B4(uint8_t aa, uint8_t rr, uint8_t gg, uint8_t bb) :
+		a(aa * 15 / 255), r(rr * 15 / 255), g(gg * 15 / 255), b(bb * 15 / 255) {}
+
+	A4R4G4B4(uint32_t color) : A4R4G4B4(GETA(color), GETR(color), GETG(color), GETB(color)) {}
+};
+
+#pragma pack(pop)
+
 extern float ScaleDDWidthRatio;
 extern float ScaleDDHeightRatio;
 extern DWORD ScaleDDCurrentWidth;
@@ -2101,10 +2127,36 @@ HRESULT m_IDirectDrawSurfaceX::Lock2(LPRECT lpDestRect, LPDDSURFACEDESC2 lpDDSur
 
 inline HRESULT m_IDirectDrawSurfaceX::LockD39Surface(D3DLOCKED_RECT* pLockedRect, RECT* pRect, DWORD Flags)
 {
+	if(PreventLocking)
+	{
+		Logging::LogDebug() << __FUNCTION__ << " (" << this << ") prevent lock of hand decal!";
+		return DDERR_GENERIC;
+	}
+
 	// Lock surface texture
 	if (surfaceTexture)
 	{
-		return surfaceTexture->LockRect(0, pLockedRect, pRect, Flags);
+		HRESULT hr = surfaceTexture->LockRect(0, pLockedRect, pRect, Flags);
+
+		if(SUCCEEDED(hr) && SpecialRole == SurfaceSpecialRole::HandDecal)
+		{
+			Logging::LogDebug() << __FUNCTION__ << " (" << this << ") override hand decal texture!";
+
+			PreventLocking = true;
+
+			auto pixel = (A4R4G4B4*) pLockedRect->pBits;
+			const uint32_t count = HandDecal.width * HandDecal.height;
+			for(uint32_t p = 0; p < count; ++p)
+			{
+				uint32_t color = ((uint32_t*)HandDecal.pixel_data)[p];
+
+				pixel[p] = color;
+			}
+
+			return DDERR_GENERIC;
+		}
+
+		return hr;
 	}
 	// Lock 3D surface
 	else if (surface3D)
@@ -3093,6 +3145,18 @@ void m_IDirectDrawSurfaceX::ReleaseSurface()
 	ReleaseD9Surface(false);
 }
 
+void m_IDirectDrawSurfaceX::AssignSpecialRoles()
+{
+	// Handle hand decal
+	static bool HandDecalAssigned = false;
+	if(Config.DdrawBlackAndWhiteHackHandDecal && !HandDecalAssigned && surfaceFormat == D3DFMT_A4R4G4B4 && surfaceDesc2.dwWidth == 32 && surfaceDesc2.dwHeight == 32)
+	{
+		HandDecalAssigned = true;
+		SpecialRole = SurfaceSpecialRole::HandDecal;
+		return;
+	}
+}
+
 LPDIRECT3DSURFACE9 m_IDirectDrawSurfaceX::Get3DSurface()
 {
 	// Check for device interface
@@ -3243,6 +3307,8 @@ HRESULT m_IDirectDrawSurfaceX::CreateD3d9Surface()
 	const DWORD Height = surfaceDesc2.dwHeight;
 
 	Logging::LogDebug() << __FUNCTION__ " (" << this << ") D3d9 Surface. Size: " << Width << "x" << Height << " Format: " << surfaceFormat << " dwCaps: " << Logging::hex(surfaceDesc2.ddsCaps.dwCaps);
+
+	AssignSpecialRoles();
 
 	HRESULT hr = DD_OK;
 

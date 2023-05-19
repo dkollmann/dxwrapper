@@ -53,6 +53,7 @@
 	visit(DdrawUseNativeResolution) \
 	visit(DdrawEnableMouseHook) \
 	visit(DdrawDisableLighting) \
+	visit(DdrawBlackAndWhiteHackHandDecal) \
 	visit(DdrawHookSystem32) \
 	visit(D3d8HookSystem32) \
 	visit(D3d9HookSystem32) \
@@ -235,6 +236,7 @@ struct CONFIG
 	DWORD DdrawOverrideStencilFormat = 0;		// Force Direct3d9 to use this AutoStencilFormat when using Dd7to9
 	bool DdrawEnableMouseHook = true;			// Allow to hook into mouse to limit it to the chosen resolution
 	bool DdrawDisableLighting = false;			// Allow to disable lighting
+	bool DdrawBlackAndWhiteHackHandDecal = false;	// To allow RTX Remix to consistently detect the hand decal, we have to replace it with a default texture.
 	DWORD DdrawHookSystem32 = 0;				// Hooks the ddraw.dll file in the Windows System32 folder
 	DWORD D3d8HookSystem32 = 0;					// Hooks the d3d8.dll file in the Windows System32 folder
 	DWORD D3d9HookSystem32 = 0;					// Hooks the d3d9.dll file in the Windows System32 folder

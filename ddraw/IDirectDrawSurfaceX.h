@@ -7,6 +7,13 @@
 #define BLT_MIRRORUPDOWN		0x00000004l
 #define BLT_COLORKEY			0x00002000l
 
+// Special roles
+enum class SurfaceSpecialRole : uint8_t
+{
+	None,
+	HandDecal
+};
+
 // Emulated surface
 struct EMUSURFACE
 {
@@ -112,6 +119,9 @@ private:
 	bool PaletteFirstRun = true;
 	bool ClipperFirstRun = true;
 
+	SurfaceSpecialRole SpecialRole = SurfaceSpecialRole::None;
+	bool PreventLocking = false;
+
 	// Direct3D9 vars
 	LPDIRECT3DDEVICE9 *d3d9Device = nullptr;			// Direct3D9 Device
 	LPDIRECT3DSURFACE9 surface3D = nullptr;				// Surface used for Direct3D
@@ -177,6 +187,8 @@ private:
 	// Interface initialization functions
 	void InitSurface(DWORD DirectXVersion);
 	void ReleaseSurface();
+
+	void AssignSpecialRoles();
 
 	// Swap surface addresses for Flip
 	template <typename T>
