@@ -18,7 +18,7 @@
 #include <d3dhal.h>
 
 // Enable for testing only
-//#define ENABLE_DEBUGOVERLAY
+#define ENABLE_DEBUGOVERLAY
 
 #ifdef ENABLE_DEBUGOVERLAY
 #include "DebugOverlay.h"
@@ -874,7 +874,14 @@ HRESULT m_IDirect3DDeviceX::SetTexture(DWORD dwStage, LPDIRECT3DTEXTURE2 lpTextu
 	{
 		if (!lpTexture)
 		{
-			return SetTexture(dwStage, (LPDIRECTDRAWSURFACE7)nullptr);
+			HRESULT hr = SetTexture(dwStage, (LPDIRECTDRAWSURFACE7)nullptr);
+
+			if(SUCCEEDED(hr))
+			{
+				CurrentTextureSpecialRole = SurfaceSpecialRole::None;
+			}
+
+			return hr;
 		}
 
 		m_IDirect3DTextureX *pTextureX = nullptr;
@@ -894,7 +901,14 @@ HRESULT m_IDirect3DDeviceX::SetTexture(DWORD dwStage, LPDIRECT3DTEXTURE2 lpTextu
 			return DDERR_GENERIC;
 		}
 
-		return SetTexture(dwStage, (LPDIRECTDRAWSURFACE7)pSurfaceX->GetWrapperInterfaceX(7));
+		HRESULT hr = SetTexture(dwStage, (LPDIRECTDRAWSURFACE7)pSurfaceX->GetWrapperInterfaceX(7));
+
+		if(SUCCEEDED(hr))
+		{
+			CurrentTextureSpecialRole = pSurfaceX->GetSpecialRole();
+		}
+
+		return hr;
 	}
 
 	if (lpTexture)
@@ -922,6 +936,11 @@ HRESULT m_IDirect3DDeviceX::SetTexture(DWORD dwStage, LPDIRECTDRAWSURFACE7 lpSur
 		if (!lpSurface)
 		{
 			hr = (*d3d9Device)->SetTexture(dwStage, nullptr);
+
+			if(SUCCEEDED(hr))
+			{
+				CurrentTextureSpecialRole = SurfaceSpecialRole::None;
+			}
 		}
 		else
 		{
@@ -944,6 +963,11 @@ HRESULT m_IDirect3DDeviceX::SetTexture(DWORD dwStage, LPDIRECTDRAWSURFACE7 lpSur
 			}
 
 			hr = (*d3d9Device)->SetTexture(dwStage, pTexture9);
+
+			if(SUCCEEDED(hr))
+			{
+				CurrentTextureSpecialRole = lpDDSrcSurfaceX->GetSpecialRole();
+			}
 		}
 
 		if (SUCCEEDED(hr) && dwStage < 8)
@@ -2514,6 +2538,13 @@ HRESULT m_IDirect3DDeviceX::DrawIndexedPrimitive(D3DPRIMITIVETYPE dptPrimitiveTy
 		{
 			return DDERR_INVALIDPARAMS;
 		}
+
+		// Handle special roles
+		/*if(CurrentTextureSpecialRole == SurfaceSpecialRole::HandDecal)
+		{
+			Logging::LogDebug() << __FUNCTION__ << " (" << this << ") skipped hand decal geometry!";
+			return DDERR_GENERIC;
+		}*/
 
 		// Check for device interface
 		if (FAILED(CheckInterface(__FUNCTION__, true)))

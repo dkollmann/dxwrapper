@@ -419,4 +419,7 @@ public:
 	static void StartSharedEmulatedMemory();
 	static void DeleteEmulatedMemory(EMUSURFACE **ppEmuSurface);
 	static void CleanupSharedEmulatedMemory();
+
+	// Get special role
+	SurfaceSpecialRole GetSpecialRole() const { return SpecialRole; }
 };

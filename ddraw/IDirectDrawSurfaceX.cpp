@@ -513,6 +513,14 @@ HRESULT m_IDirectDrawSurfaceX::Blt(LPRECT lpDestRect, LPDIRECTDRAWSURFACE7 lpDDS
 				lpDDSrcSurfaceX->QueryInterface(IID_GetInterfaceX, (LPVOID*)&lpDDSrcSurfaceX);
 			}
 
+			// Handle special roles
+			if(lpDDSrcSurfaceX->SpecialRole == SurfaceSpecialRole::HandDecal)
+			{
+				Logging::LogDebug() << __FUNCTION__ << " (" << this << ") skipped hand decal blitting!";
+				hr = DDERR_GENERIC;
+				break;
+			}
+
 			// Get surface copy flags
 			DWORD Flags =
 				(dwFlags & (DDBLT_KEYDESTOVERRIDE | DDBLT_KEYSRCOVERRIDE | DDBLT_KEYDEST | DDBLT_KEYSRC) ? BLT_COLORKEY : 0) |
@@ -3147,12 +3155,19 @@ void m_IDirectDrawSurfaceX::ReleaseSurface()
 
 void m_IDirectDrawSurfaceX::AssignSpecialRoles()
 {
+	extern bool DetectedRTXRemix;
+	if(!DetectedRTXRemix)
+	{
+		return;
+	}
+
 	// Handle hand decal
 	static bool HandDecalAssigned = false;
 	if(Config.DdrawBlackAndWhiteHackHandDecal && !HandDecalAssigned && surfaceFormat == D3DFMT_A4R4G4B4 && surfaceDesc2.dwWidth == 32 && surfaceDesc2.dwHeight == 32)
 	{
 		HandDecalAssigned = true;
 		SpecialRole = SurfaceSpecialRole::HandDecal;
+		Logging::LogDebug() << __FUNCTION__ << " (" << this << ") Detected hand decal texture.";
 		return;
 	}
 }

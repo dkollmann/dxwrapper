@@ -1,6 +1,7 @@
 #pragma once
 
 #include "IDirectDrawX.h"
+#include "IDirectDrawSurfaceX.h"
 #include <DirectXMath.h>
 
 struct CONVERTHOMOGENEOUS
@@ -37,6 +38,9 @@ private:
 
 	// SetTexture array
 	LPDIRECTDRAWSURFACE7 AttachedTexture[8] = {};
+
+	// The special role of the current texture
+	SurfaceSpecialRole CurrentTextureSpecialRole = SurfaceSpecialRole::None;
 
 	// The data used for rendering Homogeneous
 	CONVERTHOMOGENEOUS ConvertHomogeneous;
