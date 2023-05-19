@@ -2286,9 +2286,61 @@ void m_IDirectDrawX::InitDdraw(DWORD DirectXVersion)
 		EnableWaitVsync = false;
 
 		// Detect RTX Remix
-		std::string cmd = GetCommandLine();
-		Logging::Log() << "Command-line: " << cmd.c_str();
-		DetectedRTXRemix = cmd.find("\\remix\\") != std::string::npos;
+		{
+			HMODULE Module = LoadLibraryA("version.dll");
+			if (!Module)
+			{
+				Logging::Log() << "Failed to load version.dll!";
+			}
+			else
+			{
+				// Declare functions
+				typedef DWORD(WINAPI *PFN_GetFileVersionInfoSize)(LPCSTR lptstrFilename, LPDWORD lpdwHandle);
+				typedef BOOL(WINAPI *PFN_GetFileVersionInfo)(LPCSTR lptstrFilename, DWORD dwHandle, DWORD dwLen, LPVOID lpData);
+				typedef BOOL(WINAPI *PFN_VerQueryValue)(LPCVOID pBlock, LPCSTR lpSubBlock, LPVOID *lplpBuffer, PUINT puLen);
+
+				// Get functions ProcAddress
+				PFN_GetFileVersionInfoSize GetFileVersionInfoSizeA = reinterpret_cast<PFN_GetFileVersionInfoSize>(GetProcAddress(Module, "GetFileVersionInfoSizeA"));
+				PFN_GetFileVersionInfo GetFileVersionInfoA = reinterpret_cast<PFN_GetFileVersionInfo>(GetProcAddress(Module, "GetFileVersionInfoA"));
+				PFN_VerQueryValue VerQueryValueA = reinterpret_cast<PFN_VerQueryValue>(GetProcAddress(Module, "VerQueryValueA"));
+				if (!GetFileVersionInfoSizeA || !GetFileVersionInfoA || !VerQueryValueA)
+				{
+					if (!GetFileVersionInfoSizeA)
+					{
+						Logging::Log() << "Failed to get 'GetFileVersionInfoSize' ProcAddress of version.dll!";
+					}
+					if (!GetFileVersionInfoA)
+					{
+						Logging::Log() << "Failed to get 'GetFileVersionInfo' ProcAddress of version.dll!";
+					}
+					if (!VerQueryValueA)
+					{
+						Logging::Log() << "Failed to get 'VerQueryValue' ProcAddress of version.dll!";
+					}
+				}
+				else
+				{
+					DWORD versionHandle;
+					DWORD fileInfoSize = GetFileVersionInfoSizeA("d3d9.dll", &versionHandle);
+
+					if (fileInfoSize > 0)
+					{
+						std::vector<BYTE> buffer(fileInfoSize);
+						if (GetFileVersionInfoA("d3d9.dll", versionHandle, fileInfoSize, buffer.data()) != FALSE)
+						{
+							char* productName;
+							UINT productNameLen;
+							if (VerQueryValueA(buffer.data(), "\\StringFileInfo\\040904B0\\ProductName", (LPVOID*)&productName, &productNameLen) != FALSE)
+							{
+								std::string productNameStr(productName, productNameLen);
+
+								DetectedRTXRemix = productNameStr.find("remix") != std::string::npos;
+							}
+						}
+					}
+				}
+			}
+		}
 
 		// Direct3D9 Objects
 		d3d9Object = nullptr;
