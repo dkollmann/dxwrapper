@@ -363,9 +363,6 @@ HRESULT m_IDirect3DDeviceX::SetTransform(D3DTRANSFORMSTATETYPE dtstTransformStat
 					view._42 = 1.0f;   // translate Y
 					view._44 = 1.0f;
 
-					// Override original matrix pointer
-					lpD3DMatrix = &view;
-
 					// Set flag
 					ConvertHomogeneous.IsTransformViewSet = true;
 
