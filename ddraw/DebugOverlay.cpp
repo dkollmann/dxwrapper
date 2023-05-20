@@ -122,6 +122,16 @@ void DebugOverlay::EndScene()
 			viewMatrix._31 << " / " << viewMatrix._32 << " / " << viewMatrix._33 << " / " << viewMatrix._34 << '\n' <<
 			viewMatrix._41 << " / " << viewMatrix._42 << " / " << viewMatrix._43 << " / " << viewMatrix._44;
 
+		DirectX::XMVECTOR pos, rot, scale;
+		DirectX::XMMatrixDecompose(&scale, &rot, &pos, DirectX::XMLoadFloat4x4((DirectX::XMFLOAT4X4*)&viewMatrix));
+
+		DirectX::XMVECTOR rotdeg = DirectX::XMVectorScale(rot, 180.0f / 3.14159265359f);
+
+		matrices <<
+			"\n\npos: " << DirectX::XMVectorGetX(pos) << " / " << DirectX::XMVectorGetY(pos) << " / " << DirectX::XMVectorGetZ(pos) <<
+			  "\nrot: " << DirectX::XMVectorGetX(rotdeg) << "� / " << DirectX::XMVectorGetY(rotdeg) << "� / " << DirectX::XMVectorGetZ(rotdeg) <<
+			 "�\nscl: " << DirectX::XMVectorGetX(scale) << " / " << DirectX::XMVectorGetY(scale) << " / " << DirectX::XMVectorGetZ(scale) << '\n';
+
 		matrices << "\n\nPROJECTION\n" <<
 			projectionMatrix._11 << " / " << projectionMatrix._12 << " / " << projectionMatrix._13 << " / " << projectionMatrix._14 << '\n' <<
 			projectionMatrix._21 << " / " << projectionMatrix._22 << " / " << projectionMatrix._23 << " / " << projectionMatrix._24 << '\n' <<
