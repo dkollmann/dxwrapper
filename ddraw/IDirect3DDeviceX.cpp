@@ -366,19 +366,43 @@ HRESULT m_IDirect3DDeviceX::SetTransform(D3DTRANSFORMSTATETYPE dtstTransformStat
 					// Set flag
 					ConvertHomogeneous.IsTransformViewSet = true;
 
-					if (!Config.DdrawConvertHomogeneousToWorld)
-					{
-						// Override original matrix pointer
-						lpD3DMatrix = &view;
-					}
-					else
+					if (Config.DdrawConvertHomogeneousToWorld)
 					{
 						DirectX::XMVECTOR position, direction;
 						if (Config.DdrawConvertHomogeneousToWorldUseGameCamera)
 						{
 							// To reconstruct the 3D world, we need to know where the camera is and where it is looking
-							position = DirectX::XMVectorSet(lpD3DMatrix->_41, lpD3DMatrix->_42, lpD3DMatrix->_43, lpD3DMatrix->_44);
-							direction = DirectX::XMVectorSet(lpD3DMatrix->_31, lpD3DMatrix->_32, lpD3DMatrix->_33, lpD3DMatrix->_34);
+							//position = DirectX::XMVectorSet(lpD3DMatrix->_41, lpD3DMatrix->_42, lpD3DMatrix->_43, lpD3DMatrix->_44);
+							//position = DirectX::XMVectorSet(view._41, view._42, view._43, view._44);
+							position = DirectX::XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f);
+							direction = DirectX::XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
+							//direction = DirectX::XMVectorSet(lpD3DMatrix->_31, lpD3DMatrix->_32, lpD3DMatrix->_33, lpD3DMatrix->_34);
+
+							//direction = DirectX::XMVectorNegate(direction);
+
+							// Get direcztion and subtract up vector
+							//auto dir = DirectX::XMVectorSet(lpD3DMatrix->_11, lpD3DMatrix->_12 - 1.0f, lpD3DMatrix->_13, /*lpD3DMatrix->_14*/ 0.0f);
+							//dir = DirectX::XMVector3Normalize(dir);
+
+							const float x = lpD3DMatrix->_11;
+							const float y = lpD3DMatrix->_12;
+							const float z = lpD3DMatrix->_13;
+
+							float pitch = std::atan2(y, z);
+							if(pitch < 0.0f && y * z > 0.0f)  // check if y and z have the same sign
+							{
+								// handle flipping of the pitch. This is not because the camera is looking up.
+								pitch += DirectX::XM_PI;
+							}
+
+							float yaw = std::asin(x);
+							if(yaw < 0.0f)
+							{
+								yaw += DirectX::XM_2PI;
+							}
+
+							ConvertHomogeneous.ToWorld_GameCameraYaw = yaw;
+							ConvertHomogeneous.ToWorld_GameCameraPitch = pitch;
 						}
 						else
 						{
@@ -1732,7 +1756,7 @@ HRESULT m_IDirect3DDeviceX::EndScene()
 		}
 
 #ifdef ENABLE_DEBUGOVERLAY
-		DOverlay.EndScene();
+		DOverlay.EndScene(this);
 #endif
 
 		// The IDirect3DDevice7::EndScene method ends a scene that was begun by calling the IDirect3DDevice7::BeginScene method.

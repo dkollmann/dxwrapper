@@ -98,7 +98,7 @@ void DebugOverlay::BeginScene()
 	ImGui::NewFrame();
 }
 
-void DebugOverlay::EndScene()
+void DebugOverlay::EndScene(m_IDirect3DDeviceX *device)
 {
 	static bool ShowDebugUI = false;
 	if (ImGui::IsKeyDown(ImGui::GetKeyIndex(ImGuiKey_LeftAlt)) &&
@@ -129,8 +129,8 @@ void DebugOverlay::EndScene()
 
 		matrices <<
 			"\n\npos: " << DirectX::XMVectorGetX(pos) << " / " << DirectX::XMVectorGetY(pos) << " / " << DirectX::XMVectorGetZ(pos) <<
-			  "\nrot: " << DirectX::XMVectorGetX(rotdeg) << "ï¿½ / " << DirectX::XMVectorGetY(rotdeg) << "ï¿½ / " << DirectX::XMVectorGetZ(rotdeg) <<
-			 "ï¿½\nscl: " << DirectX::XMVectorGetX(scale) << " / " << DirectX::XMVectorGetY(scale) << " / " << DirectX::XMVectorGetZ(scale) << '\n';
+			  "\nrot: " << DirectX::XMVectorGetX(rotdeg) << "° / " << DirectX::XMVectorGetY(rotdeg) << "° / " << DirectX::XMVectorGetZ(rotdeg) <<
+			 "°\nscl: " << DirectX::XMVectorGetX(scale) << " / " << DirectX::XMVectorGetY(scale) << " / " << DirectX::XMVectorGetZ(scale) << '\n';
 
 		matrices << "\n\nPROJECTION\n" <<
 			projectionMatrix._11 << " / " << projectionMatrix._12 << " / " << projectionMatrix._13 << " / " << projectionMatrix._14 << '\n' <<
@@ -197,6 +197,16 @@ void DebugOverlay::EndScene()
 			ImGui::Text(ss.str().c_str());
 		}
 		ImGui::End();
+
+		{
+			float yaw = DirectX::XMConvertToDegrees(device->GetConvertHomogeneous().ToWorld_GameCameraYaw);
+			float pitch = DirectX::XMConvertToDegrees(device->GetConvertHomogeneous().ToWorld_GameCameraPitch);
+			ImGui::Begin("Game Camera");
+			char gamecam[64];
+			sprintf_s(gamecam, sizeof(gamecam), u8"Yaw: %f°  Pitch: %f°", yaw, pitch);
+			ImGui::Text(gamecam);
+			ImGui::End();
+		}
 
 		ImGui::Render();
 		ImGui_ImplDX9_RenderDrawData(ImGui::GetDrawData());

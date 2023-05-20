@@ -48,7 +48,7 @@ public:
 
 	// Frame functions
 	void BeginScene();
-	void EndScene();
+	void EndScene(m_IDirect3DDeviceX *device);
 
 	// Functions
 	void SetTransform(D3DTRANSFORMSTATETYPE dtstTransformStateType, LPD3DMATRIX lpD3DMatrix);
