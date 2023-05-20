@@ -386,9 +386,6 @@ HRESULT m_IDirect3DDeviceX::SetTransform(D3DTRANSFORMSTATETYPE dtstTransformStat
 							direction = DirectX::XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
 						}
 
-						// Override original matrix pointer
-						lpD3DMatrix = &view;
-
 						// Store the original matrix so it can be restored
 						ConvertHomogeneous.ToWorld_ViewMatrixOriginal = view;
 
@@ -401,14 +398,14 @@ HRESULT m_IDirect3DDeviceX::SetTransform(D3DTRANSFORMSTATETYPE dtstTransformStat
 
 						DirectX::XMStoreFloat4x4((DirectX::XMFLOAT4X4*)&ConvertHomogeneous.ToWorld_ProjectionMatrix, proj);
 
-						DirectX::XMVECTOR up = DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
-						DirectX::XMMATRIX viewMatrix = DirectX::XMMatrixLookToLH(position, direction, up);
+						DirectX::XMVECTOR upVector = DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+						DirectX::XMMATRIX viewMatrix = DirectX::XMMatrixLookToLH(position, direction, upVector);
 
 						// Store the 3D view matrix so it can be set later
 						DirectX::XMStoreFloat4x4((DirectX::XMFLOAT4X4*)&ConvertHomogeneous.ToWorld_ViewMatrix, viewMatrix);
 
 						// Store the view inverse matrix of the game, so we can transform the geometry with it
-						DirectX::XMMATRIX toViewSpace = DirectX::XMLoadFloat4x4((DirectX::XMFLOAT4X4*)lpD3DMatrix);
+						DirectX::XMMATRIX toViewSpace = DirectX::XMLoadFloat4x4((DirectX::XMFLOAT4X4*)&view);
 						DirectX::XMMATRIX vp = DirectX::XMMatrixMultiply(viewMatrix, proj);
 						DirectX::XMMATRIX vpinv = DirectX::XMMatrixInverse(nullptr, vp);
 
@@ -416,6 +413,9 @@ HRESULT m_IDirect3DDeviceX::SetTransform(D3DTRANSFORMSTATETYPE dtstTransformStat
 
 						ConvertHomogeneous.ToWorld_ViewMatrixInverse = DirectX::XMMatrixMultiply(depthoffset, DirectX::XMMatrixMultiply(toViewSpace, vpinv));
 					}
+
+					// Override original matrix pointer
+					lpD3DMatrix = &view;
 				}
 			}
 			else
