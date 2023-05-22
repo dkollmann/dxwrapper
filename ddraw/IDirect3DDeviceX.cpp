@@ -372,17 +372,7 @@ HRESULT m_IDirect3DDeviceX::SetTransform(D3DTRANSFORMSTATETYPE dtstTransformStat
 						if (Config.DdrawConvertHomogeneousToWorldUseGameCamera)
 						{
 							// To reconstruct the 3D world, we need to know where the camera is and where it is looking
-							//position = DirectX::XMVectorSet(lpD3DMatrix->_41, lpD3DMatrix->_42, lpD3DMatrix->_43, lpD3DMatrix->_44);
-							//position = DirectX::XMVectorSet(view._41, view._42, view._43, view._44);
 							position = DirectX::XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f);
-							direction = DirectX::XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
-							//direction = DirectX::XMVectorSet(lpD3DMatrix->_31, lpD3DMatrix->_32, lpD3DMatrix->_33, lpD3DMatrix->_34);
-
-							//direction = DirectX::XMVectorNegate(direction);
-
-							// Get direcztion and subtract up vector
-							//auto dir = DirectX::XMVectorSet(lpD3DMatrix->_11, lpD3DMatrix->_12 - 1.0f, lpD3DMatrix->_13, /*lpD3DMatrix->_14*/ 0.0f);
-							//dir = DirectX::XMVector3Normalize(dir);
 
 							const float x = lpD3DMatrix->_11;
 							const float y = lpD3DMatrix->_12;
@@ -400,6 +390,16 @@ HRESULT m_IDirect3DDeviceX::SetTransform(D3DTRANSFORMSTATETYPE dtstTransformStat
 							{
 								yaw += DirectX::XM_2PI;
 							}
+
+							// mirror the transform
+							float pitchneg = -pitch;
+
+							float pitch_cos = std::cos(pitchneg);
+							float x2 = 0.0f;  //std::cos(yaw) * pitch_cos;
+							float y2 = std::sin(pitchneg);
+							float z2 = /*std::sin(yaw) **/ pitch_cos;
+
+							direction = DirectX::XMVectorSet(x2, y2, z2, 0.0f);
 
 							ConvertHomogeneous.ToWorld_GameCameraYaw = yaw;
 							ConvertHomogeneous.ToWorld_GameCameraPitch = pitch;
