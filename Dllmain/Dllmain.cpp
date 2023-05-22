@@ -110,6 +110,10 @@ bool APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID lpReserved)
 {
 	UNREFERENCED_PARAMETER(lpReserved);
 
+#ifdef _DEBUG
+	Sleep(3000);
+#endif
+
 	static HANDLE hMutex = nullptr;
 	static HANDLE n_hMutex = nullptr;
 	static bool FullscreenThreadStartedFlag = false;

@@ -98,6 +98,9 @@
     <Filter Include="d3dddi">
       <UniqueIdentifier>{120d0136-d207-48f0-b78f-8f22921a8836}</UniqueIdentifier>
     </Filter>
+    <Filter Include="ddraw\images">
+      <UniqueIdentifier>{f1d6100d-d6e4-47ee-b4b4-63ad1e510521}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="libraries\dwmapi.cpp">
@@ -896,6 +899,9 @@
     </None>
     <None Include="Wrappers\wrapper.def">
       <Filter>Wrappers</Filter>
+    </None>
+    <None Include="ddraw\images\HandDecal.xpm">
+      <Filter>ddraw\images</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>

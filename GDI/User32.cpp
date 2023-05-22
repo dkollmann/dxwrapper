@@ -118,7 +118,7 @@ BOOL WINAPI user_DestroyWindow(HWND hWnd)
 
 int WINAPI user_GetSystemMetrics(int nIndex)
 {
-	Logging::LogDebug() << __FUNCTION__ << " " << nIndex;
+	//Logging::LogDebug() << __FUNCTION__ << " " << nIndex;
 
 	static GetSystemMetricsProc m_pGetSystemMetrics = (Wrapper::ValidProcAddress(GetSystemMetrics_out)) ? (GetSystemMetricsProc)GetSystemMetrics_out : nullptr;
 
