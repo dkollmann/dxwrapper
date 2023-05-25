@@ -369,6 +369,7 @@ HRESULT m_IDirect3DDeviceX::SetTransform(D3DTRANSFORMSTATETYPE dtstTransformStat
 					if (Config.DdrawConvertHomogeneousToWorld)
 					{
 						DirectX::XMVECTOR position, direction;
+						float depthOffset = 0.0f;
 						if (Config.DdrawConvertHomogeneousToWorldUseGameCamera)
 						{
 							// To reconstruct the 3D world, we need to know where the camera is and where it is looking
@@ -400,6 +401,8 @@ HRESULT m_IDirect3DDeviceX::SetTransform(D3DTRANSFORMSTATETYPE dtstTransformStat
 							float z2 = /*std::sin(yaw) **/ pitch_cos;
 
 							direction = DirectX::XMVectorSet(x2, y2, z2, 0.0f);
+
+							depthOffset = Config.DdrawConvertHomogeneousToWorldDepthOffset;
 
 							ConvertHomogeneous.ToWorld_GameCameraYaw = yaw;
 							ConvertHomogeneous.ToWorld_GameCameraPitch = pitch;
@@ -433,7 +436,7 @@ HRESULT m_IDirect3DDeviceX::SetTransform(D3DTRANSFORMSTATETYPE dtstTransformStat
 						DirectX::XMMATRIX vp = DirectX::XMMatrixMultiply(viewMatrix, proj);
 						DirectX::XMMATRIX vpinv = DirectX::XMMatrixInverse(nullptr, vp);
 
-						DirectX::XMMATRIX depthoffset = DirectX::XMMatrixTranslation(0.0f, 0.0f, Config.DdrawConvertHomogeneousToWorldDepthOffset);
+						DirectX::XMMATRIX depthoffset = DirectX::XMMatrixTranslation(0.0f, 0.0f, depthOffset);
 
 						ConvertHomogeneous.ToWorld_ViewMatrixInverse = DirectX::XMMatrixMultiply(depthoffset, DirectX::XMMatrixMultiply(toViewSpace, vpinv));
 					}

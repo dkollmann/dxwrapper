@@ -3155,11 +3155,13 @@ void m_IDirectDrawSurfaceX::ReleaseSurface()
 
 void m_IDirectDrawSurfaceX::AssignSpecialRoles()
 {
+#if 1
 	extern bool DetectedRTXRemix;
 	if(!DetectedRTXRemix)
 	{
 		return;
 	}
+#endif
 
 	// Handle hand decal
 	static bool HandDecalAssigned = false;
