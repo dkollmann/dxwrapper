@@ -38,13 +38,13 @@ typedef uint32_t guint;
 
 struct A4R4G4B4
 {
-	uint16_t a :4;
-	uint16_t r :4;
-	uint16_t g :4;
 	uint16_t b :4;
+	uint16_t g :4;
+	uint16_t r :4;
+	uint16_t a :4;
 
 	A4R4G4B4(uint8_t aa, uint8_t rr, uint8_t gg, uint8_t bb) :
-		a(aa * 15 / 255), r(rr * 15 / 255), g(gg * 15 / 255), b(bb * 15 / 255) {}
+		b(bb * 15 / 255), g(gg * 15 / 255), r(rr * 15 / 255), a(aa * 15 / 255) {}
 
 	A4R4G4B4(uint32_t color) : A4R4G4B4(GETA(color), GETR(color), GETG(color), GETB(color)) {}
 };
@@ -3197,48 +3197,36 @@ typedef struct RgbColor
 	unsigned char g;
 	unsigned char b;
 } RgbColor;
-
-typedef struct HsvColor
-{
-	unsigned char h;
-	unsigned char s;
-	unsigned char v;
-} HsvColor;
 #pragma pack(pop)
 
-HsvColor RgbToHsv(RgbColor rgb)
+uint8_t GetRgbHue(RgbColor rgb)
 {
-	HsvColor hsv;
-	unsigned char rgbMin, rgbMax;
+	const uint8_t rgbMax = rgb.r > rgb.g ? (rgb.r > rgb.b ? rgb.r : rgb.b) : (rgb.g > rgb.b ? rgb.g : rgb.b);
 
-	rgbMin = rgb.r < rgb.g ? (rgb.r < rgb.b ? rgb.r : rgb.b) : (rgb.g < rgb.b ? rgb.g : rgb.b);
-	rgbMax = rgb.r > rgb.g ? (rgb.r > rgb.b ? rgb.r : rgb.b) : (rgb.g > rgb.b ? rgb.g : rgb.b);
+	if(rgbMax < 1)
+		return 0;
 
-	hsv.v = rgbMax;
-	if (hsv.v == 0)
-	{
-		hsv.h = 0;
-		hsv.s = 0;
-		return hsv;
-	}
+	const uint8_t rgbMin = rgb.r < rgb.g ? (rgb.r < rgb.b ? rgb.r : rgb.b) : (rgb.g < rgb.b ? rgb.g : rgb.b);
+	const uint8_t rgbDiff = rgbMax - rgbMin;
 
-	hsv.s = 255 * long(rgbMax - rgbMin) / hsv.v;
-	if (hsv.s == 0)
-	{
-		hsv.h = 0;
-		return hsv;
-	}
+	if(rgbDiff < 1)
+		return 0;
 
 	if (rgbMax == rgb.r)
-		hsv.h = 0 + 43 * (rgb.g - rgb.b) / (rgbMax - rgbMin);
-	else if (rgbMax == rgb.g)
-		hsv.h = 85 + 43 * (rgb.b - rgb.r) / (rgbMax - rgbMin);
-	else
-		hsv.h = 171 + 43 * (rgb.r - rgb.g) / (rgbMax - rgbMin);
+		return 0 + 43 * (rgb.g - rgb.b) / rgbDiff;
 
-	return hsv;
+	if (rgbMax == rgb.g)
+		return 85 + 43 * (rgb.b - rgb.r) / rgbDiff;
+	
+	return 171 + 43 * (rgb.r - rgb.g) / rgbDiff;
 }
 
+constexpr uint8_t HueFrom360(int16_t hue)
+{
+	return (uint8_t)((float)hue / 360.0f * 255.0f);
+}
+
+#pragma optimize("", off)
 void m_IDirectDrawSurfaceX::AssignSpecialRoles(void* pixeldata)
 {
 	assert(SpecialRole == SurfaceSpecialRole::None);
@@ -3253,22 +3241,49 @@ void m_IDirectDrawSurfaceX::AssignSpecialRoles(void* pixeldata)
 
 	if(surfaceFormat == D3DFMT_A4R4G4B4 && surfaceDesc2.dwWidth == 256 && surfaceDesc2.dwHeight == 256)
 	{
-		int hues[256];
-		std::memset(hues, 0, 256);
+		constexpr uint8_t hueMin = HueFrom360(36);
+		constexpr uint8_t hueMax = HueFrom360(120);
+		constexpr float landscapeHueRequired = 30000.0f / (256.0f*256.0f);
+		const int landscapeTransCheck = 10000;
+		constexpr float landscapeBlackTransRequired = 0.2f;
+
+		int landscapeHue = 0;
+		int totalHue = 0;
+		int totalTrans = 0;
+		int blackTrans = 0;
 
 		auto pixel = (A4R4G4B4*) pixeldata;
-		const uint32_t count = HandDecal.width * HandDecal.height;
+		constexpr uint32_t count = 256 * 256;
 		for(uint32_t p = 0; p < count; ++p)
 		{
 			A4R4G4B4 rgb = pixel[p];
 
 			// skip transparent pixel
 			if(rgb.a < 15)
-				continue;
+			{
+				totalTrans++;
 
-			HsvColor hsv = RgbToHsv({ (uint8_t)((int)rgb.r * 16), (uint8_t)((int)rgb.g * 16), (uint8_t)((int)rgb.b * 16) });
+				if(rgb.r == 0 && rgb.g == 0 && rgb.b == 0)
+					blackTrans++;
+			}
+			else
+			{
+				totalHue++;
 
-			hues[hsv.h]++;
+				const uint8_t hue = GetRgbHue({ (uint8_t)((int)rgb.r * 16), (uint8_t)((int)rgb.g * 16), (uint8_t)((int)rgb.b * 16) });
+
+				if(hue >= hueMin && hue <= hueMax)
+					landscapeHue++;
+			}
+		}
+
+		// determine landscape by hue
+		bool isLandscape = ((float)landscapeHue / (float)totalHue) >= landscapeHueRequired;
+
+		if(isLandscape && totalTrans >= landscapeTransCheck)
+		{
+			// this could be a tree texture so we expect transparent black pixels
+			isLandscape = ((float)blackTrans / (float)totalTrans) >= landscapeBlackTransRequired;
 		}
 
 		char userpath[MAX_PATH];
@@ -3276,11 +3291,14 @@ void m_IDirectDrawSurfaceX::AssignSpecialRoles(void* pixeldata)
 		{
 			static int N = 0;
 			char path[MAX_PATH];
-			sprintf_s(path, sizeof(path), "%s\\Downloads\\BWTex\\0x%p_%i_%04d.png", userpath, this, surfaceFormat, N++);
-			SaveSurfaceToFile(path, D3DXIFF_PNG);
+			sprintf_s(path, sizeof(path), "%s\\Downloads\\BWTex\\%s\\0x%p_L%i_T%i_%04d.tga", userpath, (isLandscape ? "LANDSCAPE" : "OTHER"), this, landscapeHue, totalHue, N++);
+			SaveSurfaceToFile(path, D3DXIFF_TGA);
+
+			int a = 0;
 		}
 	}
 }
+#pragma optimize("", on)
 
 LPDIRECT3DSURFACE9 m_IDirectDrawSurfaceX::Get3DSurface()
 {
