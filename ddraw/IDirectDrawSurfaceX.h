@@ -120,6 +120,7 @@ private:
 	bool ClipperFirstRun = true;
 
 	SurfaceSpecialRole SpecialRole = SurfaceSpecialRole::None;
+	bool SpecialRoleApplied = false;
 	bool PreventLocking = false;
 
 	// Direct3D9 vars
@@ -189,6 +190,7 @@ private:
 	void ReleaseSurface();
 
 	void AssignSpecialRoles();
+	void AssignSpecialRoles(void *pixeldata);
 
 	// Swap surface addresses for Flip
 	template <typename T>

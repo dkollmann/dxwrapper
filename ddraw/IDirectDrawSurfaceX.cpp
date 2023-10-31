@@ -23,6 +23,7 @@
 #include "d3d9ShaderPalette.h"
 #include "d3dx9.h"
 #include "Utils\Utils.h"
+#include "ShlObj_core.h"
 
 typedef uint8_t guint8;
 typedef uint32_t guint;
@@ -2146,22 +2147,32 @@ inline HRESULT m_IDirectDrawSurfaceX::LockD39Surface(D3DLOCKED_RECT* pLockedRect
 	{
 		HRESULT hr = surfaceTexture->LockRect(0, pLockedRect, pRect, Flags);
 
-		if(SUCCEEDED(hr) && SpecialRole == SurfaceSpecialRole::HandDecal)
+		if(SUCCEEDED(hr))
 		{
-			Logging::LogDebug() << __FUNCTION__ << " (" << this << ") override hand decal texture!";
-
-			PreventLocking = true;
-
-			auto pixel = (A4R4G4B4*) pLockedRect->pBits;
-			const uint32_t count = HandDecal.width * HandDecal.height;
-			for(uint32_t p = 0; p < count; ++p)
+			if(SpecialRole == SurfaceSpecialRole::None)
 			{
-				uint32_t color = ((uint32_t*)HandDecal.pixel_data)[p];
-
-				pixel[p] = color;
+				AssignSpecialRoles(pLockedRect->pBits);
 			}
 
-			return DDERR_GENERIC;
+			else if(SpecialRole == SurfaceSpecialRole::HandDecal && !SpecialRoleApplied)
+			{
+				SpecialRoleApplied = true;
+
+				Logging::LogDebug() << __FUNCTION__ << " (" << this << ") override hand decal texture!";
+
+				PreventLocking = true;
+
+				auto pixel = (A4R4G4B4*) pLockedRect->pBits;
+				const uint32_t count = HandDecal.width * HandDecal.height;
+				for(uint32_t p = 0; p < count; ++p)
+				{
+					uint32_t color = ((uint32_t*)HandDecal.pixel_data)[p];
+
+					pixel[p] = color;
+				}
+
+				return DDERR_GENERIC;
+			}
 		}
 
 		return hr;
@@ -2625,18 +2636,20 @@ HRESULT m_IDirectDrawSurfaceX::Unlock(LPRECT lpRect)
 
 inline HRESULT m_IDirectDrawSurfaceX::UnlockD39Surface()
 {
+	HRESULT hr = DDERR_GENERIC;
+
 	// Lock surface texture
 	if (surfaceTexture)
 	{
-		return surfaceTexture->UnlockRect(0);
+		hr = surfaceTexture->UnlockRect(0);
 	}
 	// Lock 3D surface
 	else if (surface3D)
 	{
-		return surface3D->UnlockRect();
+		hr = surface3D->UnlockRect();
 	}
 
-	return DDERR_GENERIC;
+	return hr;
 }
 
 HRESULT m_IDirectDrawSurfaceX::UpdateOverlay(LPRECT lpSrcRect, LPDIRECTDRAWSURFACE7 lpDDDestSurface, LPRECT lpDestRect, DWORD dwFlags, LPDDOVERLAYFX lpDDOverlayFx)
@@ -3155,6 +3168,8 @@ void m_IDirectDrawSurfaceX::ReleaseSurface()
 
 void m_IDirectDrawSurfaceX::AssignSpecialRoles()
 {
+	assert(SpecialRole == SurfaceSpecialRole::None);
+
 #if 1
 	extern bool DetectedRTXRemix;
 	if(!DetectedRTXRemix)
@@ -3171,6 +3186,99 @@ void m_IDirectDrawSurfaceX::AssignSpecialRoles()
 		SpecialRole = SurfaceSpecialRole::HandDecal;
 		Logging::LogDebug() << __FUNCTION__ << " (" << this << ") Detected hand decal texture.";
 		return;
+	}
+}
+
+// taken from https://stackoverflow.com/questions/3018313/algorithm-to-convert-rgb-to-hsv-and-hsv-to-rgb-in-range-0-255-for-both
+#pragma pack(push, 4)
+typedef struct RgbColor
+{
+	unsigned char r;
+	unsigned char g;
+	unsigned char b;
+} RgbColor;
+
+typedef struct HsvColor
+{
+	unsigned char h;
+	unsigned char s;
+	unsigned char v;
+} HsvColor;
+#pragma pack(pop)
+
+HsvColor RgbToHsv(RgbColor rgb)
+{
+	HsvColor hsv;
+	unsigned char rgbMin, rgbMax;
+
+	rgbMin = rgb.r < rgb.g ? (rgb.r < rgb.b ? rgb.r : rgb.b) : (rgb.g < rgb.b ? rgb.g : rgb.b);
+	rgbMax = rgb.r > rgb.g ? (rgb.r > rgb.b ? rgb.r : rgb.b) : (rgb.g > rgb.b ? rgb.g : rgb.b);
+
+	hsv.v = rgbMax;
+	if (hsv.v == 0)
+	{
+		hsv.h = 0;
+		hsv.s = 0;
+		return hsv;
+	}
+
+	hsv.s = 255 * long(rgbMax - rgbMin) / hsv.v;
+	if (hsv.s == 0)
+	{
+		hsv.h = 0;
+		return hsv;
+	}
+
+	if (rgbMax == rgb.r)
+		hsv.h = 0 + 43 * (rgb.g - rgb.b) / (rgbMax - rgbMin);
+	else if (rgbMax == rgb.g)
+		hsv.h = 85 + 43 * (rgb.b - rgb.r) / (rgbMax - rgbMin);
+	else
+		hsv.h = 171 + 43 * (rgb.r - rgb.g) / (rgbMax - rgbMin);
+
+	return hsv;
+}
+
+void m_IDirectDrawSurfaceX::AssignSpecialRoles(void* pixeldata)
+{
+	assert(SpecialRole == SurfaceSpecialRole::None);
+
+#if 1
+	extern bool DetectedRTXRemix;
+	if(!DetectedRTXRemix)
+	{
+		return;
+	}
+#endif
+
+	if(surfaceFormat == D3DFMT_A4R4G4B4 && surfaceDesc2.dwWidth == 256 && surfaceDesc2.dwHeight == 256)
+	{
+		int hues[256];
+		std::memset(hues, 0, 256);
+
+		auto pixel = (A4R4G4B4*) pixeldata;
+		const uint32_t count = HandDecal.width * HandDecal.height;
+		for(uint32_t p = 0; p < count; ++p)
+		{
+			A4R4G4B4 rgb = pixel[p];
+
+			// skip transparent pixel
+			if(rgb.a < 15)
+				continue;
+
+			HsvColor hsv = RgbToHsv({ (uint8_t)((int)rgb.r * 16), (uint8_t)((int)rgb.g * 16), (uint8_t)((int)rgb.b * 16) });
+
+			hues[hsv.h]++;
+		}
+
+		char userpath[MAX_PATH];
+		if(SUCCEEDED(SHGetFolderPathA(NULL, CSIDL_PROFILE, NULL, 0, userpath)))
+		{
+			static int N = 0;
+			char path[MAX_PATH];
+			sprintf_s(path, sizeof(path), "%s\\Downloads\\BWTex\\0x%p_%i_%04d.png", userpath, this, surfaceFormat, N++);
+			SaveSurfaceToFile(path, D3DXIFF_PNG);
+		}
 	}
 }
 
