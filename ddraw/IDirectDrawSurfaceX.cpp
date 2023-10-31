@@ -3243,6 +3243,7 @@ void m_IDirectDrawSurfaceX::AssignSpecialRoles(void* pixeldata)
 	{
 		constexpr uint8_t hueMin = HueFrom360(36);
 		constexpr uint8_t hueMax = HueFrom360(120);
+		constexpr int totalHueRequired = 1000;
 		constexpr float landscapeHueRequired = 30000.0f / (256.0f*256.0f);
 		const int landscapeTransCheck = 10000;
 		constexpr float landscapeBlackTransRequired = 0.2f;
@@ -3261,10 +3262,13 @@ void m_IDirectDrawSurfaceX::AssignSpecialRoles(void* pixeldata)
 			// skip transparent pixel
 			if(rgb.a < 15)
 			{
-				totalTrans++;
+				if(rgb.a == 0)
+				{
+					totalTrans++;
 
-				if(rgb.r == 0 && rgb.g == 0 && rgb.b == 0)
-					blackTrans++;
+					if(rgb.r == 0 && rgb.g == 0 && rgb.b == 0)
+						blackTrans++;
+				}
 			}
 			else
 			{
@@ -3278,7 +3282,7 @@ void m_IDirectDrawSurfaceX::AssignSpecialRoles(void* pixeldata)
 		}
 
 		// determine landscape by hue
-		bool isLandscape = ((float)landscapeHue / (float)totalHue) >= landscapeHueRequired;
+		bool isLandscape = totalHue >= totalHueRequired && ((float)landscapeHue / (float)totalHue) >= landscapeHueRequired;
 
 		if(isLandscape && totalTrans >= landscapeTransCheck)
 		{
