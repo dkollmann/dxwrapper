@@ -29,6 +29,8 @@ typedef uint8_t guint8;
 typedef uint32_t guint;
 #include "images/HandDecal.c"
 
+#include "images/Font.h"
+
 #define GETA(color) (((color) >> 24) & 0xFF)
 #define GETR(color) (((color) >> 16) & 0xFF)
 #define GETG(color) (((color) >> 8) & 0xFF)
@@ -55,6 +57,56 @@ struct A4R4G4B4
 };
 
 #pragma pack(pop)
+
+template<typename T> void RenderText(T *pixels, int width, int height, int posx, int posy, bool center, const char *text, T textcolor)
+{
+	assert(pixels != nullptr);
+	assert(width >= 16);
+	assert(height >= 16);
+	assert(posx >= 0 && posx < width);
+	assert(posy >= 0 && posy < height);
+	assert(text != nullptr);
+
+	const int textlen = (int) std::strlen(text);
+
+	assert(textlen > 0);
+
+#ifdef _DEBUG
+	for(int i = 0; i < textlen; ++i)
+	{
+		assert( text[i] >= LOCHAR && text[i] <= HICHAR );
+	}
+#endif
+
+	if(center)
+	{
+		posx -= textlen * FONT_BWIDTH / 2;
+		assert(posx >= 0);
+	}
+
+	assert(posx + textlen * FONT_BWIDTH < width);
+	assert(posy + FONT_HEIGHT < height);
+
+	constexpr int textspacing = FONT_BWIDTH + 2;
+
+	for(int i = 0; i < textlen; ++i)
+	{
+		auto ch = FONT[ text[i] - LOCHAR ];
+
+		for(int y = 0; y < FONT_HEIGHT; ++y)
+		{
+			for(int x = 0; x < FONT_BWIDTH; ++x)
+			{
+				if(ch[y * FONT_BWIDTH + x] != 0)
+				{
+					auto &p = pixels[(posy + y) * width + posx + x + (i * textspacing)];
+
+					p = textcolor;
+				}
+			}
+		}
+	}
+}
 
 extern float ScaleDDWidthRatio;
 extern float ScaleDDHeightRatio;
@@ -2159,24 +2211,47 @@ inline HRESULT m_IDirectDrawSurfaceX::LockD39Surface(D3DLOCKED_RECT* pLockedRect
 				AssignSpecialRoles(pLockedRect->pBits);
 			}
 
-			else if(SpecialRole == SurfaceSpecialRole::HandDecal && !SpecialRoleApplied)
+			if(!SpecialRoleApplied)
 			{
-				SpecialRoleApplied = true;
-
-				Logging::LogDebug() << __FUNCTION__ << " (" << this << ") override hand decal texture!";
-
-				PreventLocking = true;
-
-				auto pixel = (A4R4G4B4*) pLockedRect->pBits;
-				const uint32_t count = HandDecal.width * HandDecal.height;
-				for(uint32_t p = 0; p < count; ++p)
+				if(SpecialRole == SurfaceSpecialRole::HandDecal)
 				{
-					uint32_t color = ((uint32_t*)HandDecal.pixel_data)[p];
+					SpecialRoleApplied = true;
 
-					pixel[p] = color;
+					Logging::LogDebug() << __FUNCTION__ << " (" << this << ") override hand decal texture!";
+
+					PreventLocking = true;
+
+					auto pixels = (A4R4G4B4*) pLockedRect->pBits;
+					const uint32_t count = HandDecal.width * HandDecal.height;
+					for(uint32_t p = 0; p < count; ++p)
+					{
+						uint32_t color = ((uint32_t*)HandDecal.pixel_data)[p];
+
+						pixels[p] = color;
+					}
+
+					surfaceTexture->UnlockRect(0);
+					return DDERR_GENERIC;
 				}
 
-				return DDERR_GENERIC;
+				else if(SpecialRole == SurfaceSpecialRole::Landscape)
+				{
+					SpecialRoleApplied = true;
+
+					auto pixels = (A4R4G4B4*) pLockedRect->pBits;
+					constexpr int count = 256*256;
+
+					// make image white
+					std::memset(pixels, 0xFFFFFFFF, count * sizeof(A4R4G4B4));
+
+					char text[64];
+					sprintf_s(text, 64, "LANDSCAPE %i", SpecialRoleIndex + 1);
+
+					RenderText(pixels, 256, 256, 256 / 2, 256 / 2, true, text, {255, 0, 0, 0});
+
+					surfaceTexture->UnlockRect(0);
+					return DDERR_GENERIC;
+				}
 			}
 		}
 
@@ -3238,7 +3313,7 @@ bool PixelHasColor(const A4R4G4B4 *pixels, int width, int x, int y, A4R4G4B4 col
 	return p == color;
 }
 
-#pragma optimize("", off)
+//#pragma optimize("", off)
 void m_IDirectDrawSurfaceX::AssignSpecialRoles(void* pixeldata)
 {
 	assert(SpecialRole == SurfaceSpecialRole::None);
@@ -3317,7 +3392,12 @@ void m_IDirectDrawSurfaceX::AssignSpecialRoles(void* pixeldata)
 
 		// assign role
 		if(isLandscape)
+		{
+			static int LandscapeNum = 0;
+
 			SpecialRole = SurfaceSpecialRole::Landscape;
+			SpecialRoleIndex = LandscapeNum++;
+		}
 
 #if 0
 		char userpath[MAX_PATH];
@@ -3331,7 +3411,7 @@ void m_IDirectDrawSurfaceX::AssignSpecialRoles(void* pixeldata)
 #endif
 	}
 }
-#pragma optimize("", on)
+//#pragma optimize("", on)
 
 LPDIRECT3DSURFACE9 m_IDirectDrawSurfaceX::Get3DSurface()
 {

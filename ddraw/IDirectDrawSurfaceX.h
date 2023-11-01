@@ -121,6 +121,7 @@ private:
 	bool ClipperFirstRun = true;
 
 	SurfaceSpecialRole SpecialRole = SurfaceSpecialRole::None;
+	int SpecialRoleIndex = 0;
 	bool SpecialRoleApplied = false;
 	bool PreventLocking = false;
 

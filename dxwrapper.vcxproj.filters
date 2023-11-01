@@ -1874,6 +1874,9 @@
     <ClInclude Include="ddraw\DebugOverlay.h">
       <Filter>ddraw</Filter>
     </ClInclude>
+    <ClInclude Include="ddraw\images\Font.h">
+      <Filter>ddraw\images</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Dllmain\BuildNo.rc">
