@@ -43,10 +43,15 @@ struct A4R4G4B4
 	uint16_t r :4;
 	uint16_t a :4;
 
-	A4R4G4B4(uint8_t aa, uint8_t rr, uint8_t gg, uint8_t bb) :
+	uint16_t touint16() const { return *(uint16_t*)this; }
+
+	constexpr A4R4G4B4(uint8_t aa, uint8_t rr, uint8_t gg, uint8_t bb) :
 		b(bb * 15 / 255), g(gg * 15 / 255), r(rr * 15 / 255), a(aa * 15 / 255) {}
 
-	A4R4G4B4(uint32_t color) : A4R4G4B4(GETA(color), GETR(color), GETG(color), GETB(color)) {}
+	constexpr A4R4G4B4(uint32_t color) : A4R4G4B4(GETA(color), GETR(color), GETG(color), GETB(color)) {}
+
+	bool operator==(A4R4G4B4 other) const { return touint16() == other.touint16(); }
+	bool operator!=(A4R4G4B4 other) const { return touint16() != other.touint16(); }
 };
 
 #pragma pack(pop)
@@ -3226,6 +3231,13 @@ constexpr uint8_t HueFrom360(int16_t hue)
 	return (uint8_t)((float)hue / 360.0f * 255.0f);
 }
 
+bool PixelHasColor(const A4R4G4B4 *pixels, int width, int x, int y, A4R4G4B4 color)
+{
+	A4R4G4B4 p = pixels[y * width + x];
+
+	return p == color;
+}
+
 #pragma optimize("", off)
 void m_IDirectDrawSurfaceX::AssignSpecialRoles(void* pixeldata)
 {
@@ -3241,6 +3253,20 @@ void m_IDirectDrawSurfaceX::AssignSpecialRoles(void* pixeldata)
 
 	if(surfaceFormat == D3DFMT_A4R4G4B4 && surfaceDesc2.dwWidth == 256 && surfaceDesc2.dwHeight == 256)
 	{
+		auto pixels = (A4R4G4B4*) pixeldata;
+
+		// do a hard check for the house texture which counts as landscape texture
+		if( PixelHasColor(pixels, 256, 205, 29, 0x996655ff) &&
+			PixelHasColor(pixels, 256, 206, 29, 0xbb6655ff) &&
+			PixelHasColor(pixels, 256, 207, 29, 0x994422ff) &&
+			PixelHasColor(pixels, 256, 208, 29, 0x773311ff) &&
+			PixelHasColor(pixels, 256, 209, 29, 0x441100ff) &&
+			PixelHasColor(pixels, 256, 210, 20, 0x220000ff) )
+		{
+			return;
+		}
+
+		// analyse texture
 		constexpr uint8_t hueMin = HueFrom360(36);
 		constexpr uint8_t hueMax = HueFrom360(120);
 		constexpr int totalHueRequired = 1000;
@@ -3253,11 +3279,10 @@ void m_IDirectDrawSurfaceX::AssignSpecialRoles(void* pixeldata)
 		int totalTrans = 0;
 		int blackTrans = 0;
 
-		auto pixel = (A4R4G4B4*) pixeldata;
 		constexpr uint32_t count = 256 * 256;
 		for(uint32_t p = 0; p < count; ++p)
 		{
-			A4R4G4B4 rgb = pixel[p];
+			A4R4G4B4 rgb = pixels[p];
 
 			// skip transparent pixel
 			if(rgb.a < 1)
@@ -3290,6 +3315,11 @@ void m_IDirectDrawSurfaceX::AssignSpecialRoles(void* pixeldata)
 			isLandscape = ((float)blackTrans / (float)totalTrans) >= landscapeBlackTransRequired;
 		}
 
+		// assign role
+		if(isLandscape)
+			SpecialRole = SurfaceSpecialRole::Landscape;
+
+#if 0
 		char userpath[MAX_PATH];
 		if(SUCCEEDED(SHGetFolderPathA(NULL, CSIDL_PROFILE, NULL, 0, userpath)))
 		{
@@ -3297,9 +3327,8 @@ void m_IDirectDrawSurfaceX::AssignSpecialRoles(void* pixeldata)
 			char path[MAX_PATH];
 			sprintf_s(path, sizeof(path), "%s\\Downloads\\BWTex\\%s\\0x%p_L%i_T%i_BT%i_TT%i_%04d.tga", userpath, (isLandscape ? "LANDSCAPE" : "OTHER"), this, landscapeHue, totalHue, blackTrans, totalTrans, N++);
 			SaveSurfaceToFile(path, D3DXIFF_TGA);
-
-			int a = 0;
 		}
+#endif
 	}
 }
 #pragma optimize("", on)

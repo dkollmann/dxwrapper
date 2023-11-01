@@ -11,7 +11,8 @@
 enum class SurfaceSpecialRole : uint8_t
 {
 	None,
-	HandDecal
+	HandDecal,
+	Landscape
 };
 
 // Emulated surface
