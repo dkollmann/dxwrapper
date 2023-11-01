@@ -3260,9 +3260,9 @@ void m_IDirectDrawSurfaceX::AssignSpecialRoles(void* pixeldata)
 			A4R4G4B4 rgb = pixel[p];
 
 			// skip transparent pixel
-			if(rgb.a < 15)
+			if(rgb.a < 1)
 			{
-				if(rgb.a == 0)
+				//if(rgb.a == 0)
 				{
 					totalTrans++;
 
@@ -3295,7 +3295,7 @@ void m_IDirectDrawSurfaceX::AssignSpecialRoles(void* pixeldata)
 		{
 			static int N = 0;
 			char path[MAX_PATH];
-			sprintf_s(path, sizeof(path), "%s\\Downloads\\BWTex\\%s\\0x%p_L%i_T%i_%04d.tga", userpath, (isLandscape ? "LANDSCAPE" : "OTHER"), this, landscapeHue, totalHue, N++);
+			sprintf_s(path, sizeof(path), "%s\\Downloads\\BWTex\\%s\\0x%p_L%i_T%i_BT%i_TT%i_%04d.tga", userpath, (isLandscape ? "LANDSCAPE" : "OTHER"), this, landscapeHue, totalHue, blackTrans, totalTrans, N++);
 			SaveSurfaceToFile(path, D3DXIFF_TGA);
 
 			int a = 0;
