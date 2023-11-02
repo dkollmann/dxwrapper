@@ -60,6 +60,7 @@ struct A4R4G4B4
 
 template<typename T> void RenderText(T *pixels, int width, int height, int posx, int posy, bool center, const char *text, T textcolor)
 {
+	(void)height;
 	assert(pixels != nullptr);
 	assert(width >= 16);
 	assert(height >= 16);
@@ -2202,15 +2203,14 @@ inline HRESULT m_IDirectDrawSurfaceX::LockD39Surface(D3DLOCKED_RECT* pLockedRect
 	// Lock surface texture
 	if (surfaceTexture)
 	{
+		// failsafe
+		if(surfaceTextureData != nullptr)
+			surfaceTextureData = nullptr;
+
 		HRESULT hr = surfaceTexture->LockRect(0, pLockedRect, pRect, Flags);
 
 		if(SUCCEEDED(hr))
 		{
-			if(SpecialRole == SurfaceSpecialRole::None)
-			{
-				AssignSpecialRoles(pLockedRect->pBits);
-			}
-
 			if(!SpecialRoleApplied)
 			{
 				if(SpecialRole == SurfaceSpecialRole::HandDecal)
@@ -2233,26 +2233,23 @@ inline HRESULT m_IDirectDrawSurfaceX::LockD39Surface(D3DLOCKED_RECT* pLockedRect
 					surfaceTexture->UnlockRect(0);
 					return DDERR_GENERIC;
 				}
-
-				else if(SpecialRole == SurfaceSpecialRole::Landscape)
+			}
+			else
+			{
+				// restore original texture
+				if(SpecialRole == SurfaceSpecialRole::Landscape && OriginalData.size() > 0)
 				{
-					SpecialRoleApplied = true;
-
 					auto pixels = (A4R4G4B4*) pLockedRect->pBits;
 					constexpr int count = 256*256;
+					constexpr int size = count * sizeof(A4R4G4B4);
 
-					// make image white
-					std::memset(pixels, 0xFFFFFFFF, count * sizeof(A4R4G4B4));
+					std::memcpy(pixels, OriginalData.data(), size);
 
-					char text[64];
-					sprintf_s(text, 64, "LANDSCAPE %i", SpecialRoleIndex + 1);
-
-					RenderText(pixels, 256, 256, 256 / 2, 256 / 2, true, text, {255, 0, 0, 0});
-
-					surfaceTexture->UnlockRect(0);
-					return DDERR_GENERIC;
+					OriginalData.clear();
 				}
 			}
+
+			surfaceTextureData = pLockedRect->pBits;
 		}
 
 		return hr;
@@ -2721,7 +2718,82 @@ inline HRESULT m_IDirectDrawSurfaceX::UnlockD39Surface()
 	// Lock surface texture
 	if (surfaceTexture)
 	{
+#if 0
+		if(SpecialRole != SurfaceSpecialRole::HandDecal)
+		{
+			char userpath[MAX_PATH];
+			if(SUCCEEDED(SHGetFolderPathA(NULL, CSIDL_PROFILE, NULL, 0, userpath)))
+			{
+				static int N = 0;
+				char path[MAX_PATH];
+				sprintf_s(path, sizeof(path), "%s\\Downloads\\BWTex\\0x%p_%04d.tga", userpath, this, N++);
+				SaveSurfaceToFile(path, D3DXIFF_TGA);
+			}
+		}
+#endif
+
+		// failsafe
+		if(surfaceTextureData == nullptr)
+			return hr;
+
+		if(SpecialRole == SurfaceSpecialRole::None)
+		{
+			AssignSpecialRoles(surfaceTextureData);
+		}
+
+		if(!SpecialRoleApplied)
+		{
+			if(SpecialRole == SurfaceSpecialRole::HandDecal)
+			{
+				SpecialRoleApplied = true;
+
+				Logging::LogDebug() << __FUNCTION__ << " (" << this << ") override hand decal texture!";
+
+				PreventLocking = true;
+
+				auto pixels = (A4R4G4B4*) surfaceTextureData;
+				const uint32_t count = HandDecal.width * HandDecal.height;
+				for(uint32_t p = 0; p < count; ++p)
+				{
+					uint32_t color = ((uint32_t*)HandDecal.pixel_data)[p];
+
+					pixels[p] = color;
+				}
+
+				surfaceTexture->UnlockRect(0);
+				return DDERR_GENERIC;
+			}
+
+			else if(SpecialRole == SurfaceSpecialRole::Landscape)
+			{
+				SpecialRoleApplied = true;
+
+				auto pixels = (A4R4G4B4*) surfaceTextureData;
+				constexpr int count = 256*256;
+				constexpr int size = count * sizeof(A4R4G4B4);
+
+				// save actual texture
+				OriginalData.resize(size);
+
+				std::memcpy(OriginalData.data(), pixels, size);
+
+				// make image white
+				std::memset(pixels, 0xFFFFFFFF, count * sizeof(A4R4G4B4));
+
+				// add text
+				char text[64];
+				sprintf_s(text, 64, "LANDSCAPE %i", SpecialRoleIndex + 1);
+
+				RenderText(pixels, 256, 256, 256 / 2, 256 / 2, true, text, {255, 0, 0, 0});
+
+				surfaceTexture->UnlockRect(0);
+				return DDERR_GENERIC;
+			}
+		}
+
 		hr = surfaceTexture->UnlockRect(0);
+
+		surfaceTextureData = nullptr;
 	}
 	// Lock 3D surface
 	else if (surface3D)

@@ -125,6 +125,9 @@ private:
 	bool SpecialRoleApplied = false;
 	bool PreventLocking = false;
 
+	void *surfaceTextureData = nullptr;
+	std::vector<uint8_t> OriginalData;
+
 	// Direct3D9 vars
 	LPDIRECT3DDEVICE9 *d3d9Device = nullptr;			// Direct3D9 Device
 	LPDIRECT3DSURFACE9 surface3D = nullptr;				// Surface used for Direct3D
