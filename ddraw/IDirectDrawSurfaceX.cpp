@@ -47,6 +47,8 @@ struct A4R4G4B4
 
 	uint16_t touint16() const { return *(uint16_t*)this; }
 
+	A4R4G4B4() : b(0), g(0), r(0), a(0) {}
+
 	constexpr A4R4G4B4(uint8_t aa, uint8_t rr, uint8_t gg, uint8_t bb) :
 		b(bb * 15 / 255), g(gg * 15 / 255), r(rr * 15 / 255), a(aa * 15 / 255) {}
 
@@ -3385,6 +3387,61 @@ bool PixelHasColor(const A4R4G4B4 *pixels, int width, int x, int y, A4R4G4B4 col
 	return p == color;
 }
 
+template<typename T, int Width, int Height, int Count> class Fingerprint
+{
+public:
+	struct Data { T p[Count * Count]; };
+
+private:
+	std::vector<Data> FingerPrints;
+
+public:
+	int GetAndCheck(const T *pixeldata, Data &fingerprint, float minequal) const
+	{
+		// generate fingerprint
+		int fp = 0;
+		for(int y = 0; y < Count; ++y)
+		{
+			int yy = Height / Count * y + Count / 2;
+
+			for(int x = 0; x < Count; ++x)
+			{
+				int xx = Width / Count * x + Count / 2;
+
+				fingerprint.p[fp++] = pixeldata[yy * Width + xx];
+			}
+		}
+
+		// check if the fingerprint already exists
+		for(size_t i = 0; i < FingerPrints.size(); ++i)
+		{
+			int equal = 0;
+			for(int j = 0; j < Count*Count; ++j)
+			{
+				if(fingerprint.p[j] == FingerPrints[i].p[j])
+				{
+					equal++;
+				}
+			}
+
+			if((float)equal / (float)(Count*Count) >= minequal)
+				return (int)i;
+		}
+
+		return -1;
+	}
+
+	int Add(const Data &fingerprint)
+	{
+		FingerPrints.push_back(fingerprint);
+
+		return (int)FingerPrints.size() - 1;
+	}
+};
+
+typedef Fingerprint<A4R4G4B4, 256, 256, 8> LandscapeFingerprintsType;
+LandscapeFingerprintsType LandscapeFingerprints;
+
 //#pragma optimize("", off)
 void m_IDirectDrawSurfaceX::AssignSpecialRoles(void* pixeldata)
 {
@@ -3396,6 +3453,10 @@ void m_IDirectDrawSurfaceX::AssignSpecialRoles(void* pixeldata)
 	{
 		return;
 	}
+#endif
+
+#if 0
+	static int N = 0;
 #endif
 
 	if(surfaceFormat == D3DFMT_A4R4G4B4 && surfaceDesc2.dwWidth == 256 && surfaceDesc2.dwHeight == 256)
@@ -3410,6 +3471,28 @@ void m_IDirectDrawSurfaceX::AssignSpecialRoles(void* pixeldata)
 			PixelHasColor(pixels, 256, 209, 29, 0x441100ff) &&
 			PixelHasColor(pixels, 256, 210, 20, 0x220000ff) )
 		{
+			return;
+		}
+
+		// check if we can find the fingerprint
+		LandscapeFingerprintsType::Data fingerprint;
+		const int fingerprintidx = LandscapeFingerprints.GetAndCheck(pixels, fingerprint, 0.75f);
+
+		if(fingerprintidx >= 0)
+		{
+			SpecialRole = SurfaceSpecialRole::Landscape;
+			SpecialRoleIndex = fingerprintidx;
+
+#if 0
+			char userpath[MAX_PATH];
+			if(SUCCEEDED(SHGetFolderPathA(NULL, CSIDL_PROFILE, NULL, 0, userpath)))
+			{
+				char path[MAX_PATH];
+				sprintf_s(path, sizeof(path), "%s\\Downloads\\BWTex\\0x%p_%04d_%04d.tga", userpath, this, SpecialRoleIndex, N++);
+				SaveSurfaceToFile(path, D3DXIFF_TGA);
+			}
+#endif
+
 			return;
 		}
 
@@ -3465,22 +3548,21 @@ void m_IDirectDrawSurfaceX::AssignSpecialRoles(void* pixeldata)
 		// assign role
 		if(isLandscape)
 		{
-			static int LandscapeNum = 0;
+			int idx = LandscapeFingerprints.Add(fingerprint);
 
 			SpecialRole = SurfaceSpecialRole::Landscape;
-			SpecialRoleIndex = LandscapeNum++;
-		}
+			SpecialRoleIndex = idx;
 
 #if 0
-		char userpath[MAX_PATH];
-		if(SUCCEEDED(SHGetFolderPathA(NULL, CSIDL_PROFILE, NULL, 0, userpath)))
-		{
-			static int N = 0;
-			char path[MAX_PATH];
-			sprintf_s(path, sizeof(path), "%s\\Downloads\\BWTex\\%s\\0x%p_L%i_T%i_BT%i_TT%i_%04d.tga", userpath, (isLandscape ? "LANDSCAPE" : "OTHER"), this, landscapeHue, totalHue, blackTrans, totalTrans, N++);
-			SaveSurfaceToFile(path, D3DXIFF_TGA);
-		}
+			char userpath[MAX_PATH];
+			if(SUCCEEDED(SHGetFolderPathA(NULL, CSIDL_PROFILE, NULL, 0, userpath)))
+			{
+				char path[MAX_PATH];
+				sprintf_s(path, sizeof(path), "%s\\Downloads\\BWTex\\0x%p_%04d_%04d.tga", userpath, this, SpecialRoleIndex, N++);
+				SaveSurfaceToFile(path, D3DXIFF_TGA);
+			}
 #endif
+		}
 	}
 }
 //#pragma optimize("", on)
